@@ -546,6 +546,91 @@
 
 ---
 
+## 2025-11-21 - TASK-006: Save/Load Projects (Core Implementation)
+**Duration:** ~3 hours
+**Phase:** Phase 1 MVP
+**Status:** On Track ✅
+
+### What Was Accomplished
+- **Database Layer (Rust):**
+  - Created comprehensive SQLite schema (`db/schema.sql`) with:
+    - Projects table with active project tracking
+    - Devices table supporting MIDI and UCNet devices
+    - Mappings table with full parameter configuration
+    - Preferences table for app-wide settings
+    - Schema versioning for future migrations
+  - Implemented database connection management (`db/connection.rs`):
+    - Thread-safe Arc<Mutex<Connection>> wrapper
+    - Automatic schema initialization
+    - Migration system with version tracking
+    - Platform-specific database path resolution
+  - Created type-safe database models (`db/types.rs`):
+    - Project, Device, Mapping types with full serde support
+    - Enums for DeviceType, ConnectionType, TaperCurve
+    - Request/Response DTOs for all operations
+  - Implemented repository pattern with full CRUD:
+    - `db/projects.rs`: Create, read, update, delete, set active
+    - `db/devices.rs`: Device management by project and type
+    - `db/mappings.rs`: Mapping CRUD with MIDI CC lookup
+  - Added JSON export/import (`db/export.rs`):
+    - Version-tagged exports for future compatibility
+    - Automatic duplicate name handling on import
+    - Device ID remapping during import
+  - Error handling (`db/error.rs`):
+    - Custom DbError enum with thiserror
+    - Proper constraint violation detection
+    - Conversion from rusqlite::Error
+
+- **Tauri Commands:**
+  - Created `commands/projects.rs` with 18 commands:
+    - 8 project commands (create, get, update, delete, etc.)
+    - 5 device commands
+    - 5 mapping commands
+    - 4 export/import commands
+  - Integrated AppState with Arc<Database> into main.rs
+  - Database initialization on app startup with proper error handling
+
+- **Frontend (React + TypeScript):**
+  - Created TypeScript types (`types/projects.ts`) matching Rust types
+  - Implemented `useProjects` hook with:
+    - Full CRUD operations for projects, devices, mappings
+    - Export/import functionality
+    - Loading and error state management
+    - Automatic refresh after mutations
+  - Created `ProjectManager` component with:
+    - Project creation dialog
+    - Active project display
+    - Recent projects list
+    - All projects grid
+    - Export/import buttons (placeholder file paths)
+    - Delete confirmation dialogs
+
+- **Dependencies Added:**
+  - `dirs` crate for platform-specific paths
+  - `chrono` crate for timestamp handling in exports
+
+### What Was Learned
+- **SQLite Foreign Keys:** Must be explicitly enabled with `PRAGMA foreign_keys = ON` for cascade deletes to work
+- **Rust Borrow Checker:** Pattern matching with `ref` keyword prevents move errors when matching on error types
+- **Tauri State Management:** Arc<Database> allows thread-safe sharing across all command handlers
+- **Database Design:** Single active project flag with automatic deactivation prevents multiple active projects
+- **Type Safety:** Matching Rust and TypeScript types exactly prevents serialization errors
+
+### Blockers / Issues
+- **Auto-Save:** Not yet implemented (requires debouncing and change detection)
+- **File Dialogs:** Using placeholder paths; need to integrate Tauri's dialog plugin
+- **Tests:** Database tests written but need uuid crate for test isolation
+- **Hardware Integration:** Cannot test full workflow without real devices
+
+### Next Steps
+- Add `uuid` crate to dev-dependencies for test database isolation
+- Implement auto-save functionality with debouncing
+- Add Tauri dialog plugin for file picker
+- Write integration tests for complete project workflows
+- TASK-007: Visual Feedback (on-screen faders)
+
+---
+
 ## Quick Reference: Phase 1 Locked Features
 
 These 7 features must be complete before Phase 1 ships:
@@ -555,10 +640,10 @@ These 7 features must be complete before Phase 1 ships:
 3. ✅ Basic parameter mapping (volume, mute, pan) - **COMPLETE** (TASK-003)
 4. ✅ Bidirectional sync (< 10ms latency) - **COMPLETE** (TASK-004)
 5. ✅ MIDI Learn functionality - **COMPLETE** (TASK-005)
-6. ⏳ Save/Load projects (TASK-006)
+6. 🟡 Save/Load projects (TASK-006) - **IN PROGRESS** (Core functionality complete, auto-save pending)
 7. ⏳ Visual feedback (on-screen faders) (TASK-007)
 
-**Current Progress:** 5/7 complete (71%)
+**Current Progress:** 5/7 complete (71%), 1 in progress
 
 ---
 

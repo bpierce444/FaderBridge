@@ -2,12 +2,14 @@
 
 pub mod learn;
 pub mod midi;
+pub mod projects;
 pub mod sync;
 pub mod ucnet;
 
 // Re-export state types
 pub use learn::MidiLearnState;
 pub use midi::MidiState;
+pub use projects::AppState;
 pub use sync::SyncState;
 pub use ucnet::UcNetState;
 

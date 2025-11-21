@@ -1,4 +1,13 @@
-// SQLite database layer
-// This module will handle project persistence and device profiles
+//! SQLite database layer for project persistence and device profiles
 
-// TODO: Implement for TASK-006
+mod connection;
+mod devices;
+mod error;
+mod export;
+mod mappings;
+mod projects;
+mod types;
+
+pub use connection::Database;
+pub use error::{DbError, DbResult};
+pub use types::*;
