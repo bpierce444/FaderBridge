@@ -3,8 +3,12 @@
 # Tauri / Rust
 /src-tauri/target/
 /src-tauri/Cargo.lock
+/src-tauri/WixTools/
 *.rs.bk
 *.pdb
+
+# Tauri build outputs
+/src-tauri/gen/
 
 # Node / React
 node_modules/
