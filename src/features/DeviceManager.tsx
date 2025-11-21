@@ -49,9 +49,9 @@ export function DeviceManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">UCNet Devices</h2>
+          <h2 className="text-2xl font-bold text-white">Mixers & Interfaces</h2>
           <p className="text-slate-400 text-sm mt-1">
-            Discovered devices on network and USB
+            PreSonus UCNet devices (Series III, Quantum)
           </p>
         </div>
         
@@ -75,9 +75,9 @@ export function DeviceManager() {
       <div className="space-y-3">
         {devices.length === 0 && !isDiscovering && (
           <div className="p-8 text-center bg-slate-900/50 border border-slate-800 rounded-lg">
-            <p className="text-slate-400">No devices found</p>
+            <p className="text-slate-400">No mixers or interfaces found</p>
             <p className="text-slate-500 text-sm mt-2">
-              Make sure your PreSonus device is powered on and connected
+              Make sure your Series III mixer or Quantum interface is powered on and connected to the network
             </p>
           </div>
         )}

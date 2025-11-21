@@ -34,6 +34,8 @@ pub struct ConnectionManager {
     event_tx: mpsc::UnboundedSender<ConnectionEvent>,
     /// Event receiver (for consumers)
     event_rx: Arc<RwLock<mpsc::UnboundedReceiver<ConnectionEvent>>>,
+    /// Flag to track if keepalive task has been started
+    keepalive_started: Arc<RwLock<bool>>,
 }
 
 /// Represents a single device connection
@@ -69,6 +71,7 @@ impl ConnectionManager {
             connections: Arc::new(RwLock::new(HashMap::new())),
             event_tx,
             event_rx: Arc::new(RwLock::new(event_rx)),
+            keepalive_started: Arc::new(RwLock::new(false)),
         }
     }
     
@@ -108,6 +111,22 @@ impl ConnectionManager {
         {
             let mut connections = self.connections.write().await;
             connections.insert(device_id.clone(), connection);
+        }
+        
+        // Start keepalive task on first connection (lazy initialization)
+        {
+            let mut started = self.keepalive_started.write().await;
+            if !*started {
+                info!("Starting keepalive task");
+                let manager = Arc::new(Self {
+                    connections: Arc::clone(&self.connections),
+                    event_tx: self.event_tx.clone(),
+                    event_rx: Arc::clone(&self.event_rx),
+                    keepalive_started: Arc::clone(&self.keepalive_started),
+                });
+                manager.start_keepalive_task();
+                *started = true;
+            }
         }
         
         // Notify connection event

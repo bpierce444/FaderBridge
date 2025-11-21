@@ -125,17 +125,27 @@ impl DeviceDiscovery for DefaultDeviceDiscovery {
                 }
             };
             
-            // Check if this is a PreSonus device
+            // Check if this is a PreSonus UCNet device (not just any PreSonus device)
             if device_desc.vendor_id() == PRESONUS_VENDOR_ID {
+                let product_id = device_desc.product_id();
                 debug!(
                     "Found PreSonus device: VID=0x{:04x}, PID=0x{:04x}",
                     device_desc.vendor_id(),
-                    device_desc.product_id()
+                    product_id
                 );
+                
+                // Only include devices that are UCNet-capable
+                if !super::types::constants::is_ucnet_device(product_id) {
+                    debug!(
+                        "Skipping non-UCNet PreSonus device (PID=0x{:04x}) - likely a MIDI controller",
+                        product_id
+                    );
+                    continue;
+                }
                 
                 match extract_usb_device_info(&device, &device_desc) {
                     Ok(device_info) => {
-                        info!("Discovered USB device: {}", device_info.model);
+                        info!("Discovered UCNet USB device: {}", device_info.model);
                         devices.push(device_info);
                     }
                     Err(e) => {

@@ -19,8 +19,8 @@ impl UcNetState {
     pub fn new() -> Self {
         let connection_manager = Arc::new(ConnectionManager::new());
         
-        // Start keep-alive task
-        Arc::clone(&connection_manager).start_keepalive_task();
+        // Note: Keep-alive task will be started on first connect
+        // to ensure Tokio runtime is available
         
         Self {
             discovery: Arc::new(DefaultDeviceDiscovery::new()),

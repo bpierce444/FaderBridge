@@ -90,6 +90,22 @@ pub mod constants {
     
     /// Maximum time without keep-alive before considering connection lost
     pub const CONNECTION_TIMEOUT_SECS: u64 = 15;
+    
+    /// Known UCNet-capable device product IDs (USB)
+    /// These are the ONLY PreSonus devices that support UCNet protocol
+    pub const UCNET_USB_PRODUCT_IDS: &[u16] = &[
+        0x8186, // Quantum HD8
+        0x8187, // Quantum HD4
+        0x8188, // Quantum 26x32
+        0x8189, // Quantum 4848
+        // Note: Series III mixers (32SX, 24R, etc.) typically use network UCNet, not USB
+        // FaderPort devices (0x1800-0x180F range) are MIDI controllers, NOT UCNet devices
+    ];
+    
+    /// Check if a product ID is a UCNet-capable device
+    pub fn is_ucnet_device(product_id: u16) -> bool {
+        UCNET_USB_PRODUCT_IDS.contains(&product_id)
+    }
 }
 
 impl UcNetDevice {

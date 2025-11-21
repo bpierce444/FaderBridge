@@ -32,7 +32,12 @@ export function MidiDeviceList() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-100">MIDI Devices</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-white">Controllers</h2>
+          <p className="text-slate-400 text-sm mt-1">
+            MIDI controllers and control surfaces
+          </p>
+        </div>
         <button
           onClick={discoverDevices}
           disabled={loading}
@@ -65,10 +70,10 @@ export function MidiDeviceList() {
               d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
             />
           </svg>
-          MIDI Inputs ({inputDevices.length})
+          Controller Inputs ({inputDevices.length})
         </h3>
         {inputDevices.length === 0 ? (
-          <p className="text-slate-500 text-sm italic">No MIDI input devices found</p>
+          <p className="text-slate-500 text-sm italic">No controller inputs found</p>
         ) : (
           <div className="space-y-2">
             {inputDevices.map(device => (
@@ -99,10 +104,10 @@ export function MidiDeviceList() {
               d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
             />
           </svg>
-          MIDI Outputs ({outputDevices.length})
+          Controller Outputs ({outputDevices.length})
         </h3>
         {outputDevices.length === 0 ? (
-          <p className="text-slate-500 text-sm italic">No MIDI output devices found</p>
+          <p className="text-slate-500 text-sm italic">No controller outputs found</p>
         ) : (
           <div className="space-y-2">
             {outputDevices.map(device => (
