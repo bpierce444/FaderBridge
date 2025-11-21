@@ -4,10 +4,12 @@
 pub mod connection;
 pub mod enumeration;
 pub mod error;
+pub mod learn;
 pub mod types;
 
 // Re-export commonly used types
 pub use connection::MidiConnectionManager;
 pub use enumeration::{DeviceEnumerator, MidiDeviceManager, MidirEnumerator};
 pub use error::{MidiError, MidiResult};
+pub use learn::{LearnResult, LearnState, MidiLearn};
 pub use types::{MidiConnectionStatus, MidiDevice, MidiDeviceType, MidiMessageType};

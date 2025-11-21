@@ -502,6 +502,50 @@
 
 ---
 
+## 2025-11-21 - TASK-005: MIDI Learn Functionality
+**Duration:** ~2 hours
+**Phase:** Phase 1 MVP
+**Status:** On Track ✅
+
+### What Was Accomplished
+- **Backend (Rust):**
+  - Created `midi/learn.rs` with state machine (Idle/Listening states)
+  - Implemented 10-second timeout with automatic cleanup
+  - Added MIDI message filtering (excludes Program Change, zero-velocity Note On)
+  - Support for CC, Note On/Off, and Pitch Bend messages
+  - Automatic taper curve selection based on parameter type
+  - Created `commands/learn.rs` with Tauri command handlers
+  - Integrated with main.rs and registered all commands
+  - 18 unit tests passing (11 in learn.rs, 7 in commands/learn.rs)
+
+- **Frontend (React + TypeScript):**
+  - Created `types/learn.ts` with TypeScript types and helper functions
+  - Created `hooks/useMidiLearn.ts` with polling and ESC key handling
+  - Created `components/LearnButton.tsx` - reusable learn button
+  - Created `features/MidiLearn.tsx` - status overlay with progress bar
+  - 10 unit tests passing for useMidiLearn hook
+  - ESC key cancellation with keyboard event listener
+  - Real-time progress bar showing remaining time
+
+### What Was Learned
+- **State Machine Design:** Using Rust's enum-based state machines with `Instant` for timeout tracking is elegant and type-safe
+- **Pitch Bend Mapping:** Mapped pitch bend to special CC controller #128 to maintain consistency with existing mapping infrastructure
+- **React Hook Patterns:** Polling-based state updates work well for learn mode, with automatic cleanup when exiting learn state
+- **Visual Feedback:** Amber color with pulse animation provides clear "listening" state indicator per Dark Room style guide
+- **Testing Strategy:** Tauri State doesn't work in unit tests, so focused on DTO conversion tests and direct state tests instead
+
+### Blockers / Issues
+- **Duplicate Mapping Detection:** Deferred to integration layer (TASK-004) since it requires access to existing mappings
+- **Hardware Testing:** Cannot test with real MIDI controllers yet
+- **Integration Testing:** Full workflow testing requires bidirectional sync (TASK-004)
+
+### Next Steps
+- TASK-006: Save/Load Projects (persistence layer)
+- TASK-007: Visual Feedback (on-screen faders)
+- Integration testing once hardware is available
+
+---
+
 ## Quick Reference: Phase 1 Locked Features
 
 These 7 features must be complete before Phase 1 ships:
@@ -510,11 +554,11 @@ These 7 features must be complete before Phase 1 ships:
 2. ✅ MIDI device enumeration - **COMPLETE** (TASK-002)
 3. ✅ Basic parameter mapping (volume, mute, pan) - **COMPLETE** (TASK-003)
 4. ✅ Bidirectional sync (< 10ms latency) - **COMPLETE** (TASK-004)
-5. ⏳ MIDI Learn functionality (TASK-005)
+5. ✅ MIDI Learn functionality - **COMPLETE** (TASK-005)
 6. ⏳ Save/Load projects (TASK-006)
 7. ⏳ Visual feedback (on-screen faders) (TASK-007)
 
-**Current Progress:** 4/7 complete (57%)
+**Current Progress:** 5/7 complete (71%)
 
 ---
 
