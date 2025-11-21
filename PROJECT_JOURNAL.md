@@ -230,6 +230,78 @@
 
 ---
 
+## 2025-11-21 - TASK-002: MIDI Device Enumeration Complete
+**Duration:** ~2 hours
+**Phase:** Phase 1 MVP
+**Status:** On Track ✅
+
+### What Was Accomplished
+- **Backend Implementation (Rust):**
+  - Created complete MIDI module with 4 new files:
+    - `types.rs` - MIDI device types, message parsing (ControlChange, NoteOn/Off, PitchBend, ProgramChange)
+    - `error.rs` - Comprehensive error handling with thiserror
+    - `enumeration.rs` - Device discovery using midir with DeviceEnumerator trait
+    - `connection.rs` - Connection management for input/output devices
+  - Implemented device discovery for USB, Bluetooth, and Virtual MIDI ports
+  - Automatic manufacturer extraction from device names
+  - Hot-plug detection with change tracking
+  - 13 backend unit tests passing
+
+- **Frontend Implementation (React + TypeScript):**
+  - Created `types/midi.ts` - TypeScript types matching Rust backend
+  - Created `hooks/useMidiDevices.ts` - React hook with:
+    - Auto-discovery on mount
+    - Hot-plug detection (2-second polling)
+    - Connect/disconnect device management
+    - Error handling
+  - Created `features/MidiDeviceList.tsx` - UI component with:
+    - Separate input/output device sections
+    - Connection status indicators (cyan glow for connected)
+    - Device info display (name, manufacturer, port)
+    - "Dark Room Standard" styling
+  - Updated `App.tsx` to show MIDI and UCNet devices side-by-side
+  - 7 frontend unit tests passing
+
+- **Testing & Quality:**
+  - All 21 backend tests passing (`cargo test`)
+  - All 13 frontend tests passing (`npm test`)
+  - No compiler errors
+  - Only dead code warnings for unused features (expected)
+  - Code follows all AI_CODING_RULES.md standards
+  - No `.unwrap()` in production code paths
+  - All public functions have doc comments
+
+### What Was Learned
+- midir provides excellent cross-platform MIDI support (CoreMIDI on macOS)
+- Manufacturer names can be extracted from device names using common prefixes
+- Hot-plug detection requires polling on most platforms (no native event system)
+- React Testing Library requires careful async/await handling with `waitFor()`
+- MidiOutputConnection requires mutable reference for `send()` method
+- Trait-based design (DeviceEnumerator) enables clean mocking in tests
+
+### Blockers / Issues
+- **Hardware Testing:** Cannot test with real MIDI devices without physical hardware
+- **Device Persistence:** Deferred to TASK-006 (Save/Load projects)
+
+### Next Steps
+- Begin TASK-003: Basic Parameter Mapping (volume, mute, pan)
+- This will connect MIDI input to UCNet output
+- Requires translation layer between MIDI CC and UCNet parameters
+
+### Key Decisions Made
+- Used trait-based design for DeviceEnumerator (ADR-004 compliance)
+- Chose 2-second polling interval for hot-plug detection (balance between responsiveness and CPU)
+- Separated input/output device lists in UI for clarity
+- Used Arc<Mutex<>> for shared state in MidiState
+
+### Notes
+- TASK-002 is now complete and unblocks TASK-003 and TASK-005
+- Phase 1 progress: 2/7 features complete (29%)
+- All acceptance criteria met except manual hardware testing
+- Code is production-ready pending real device testing
+
+---
+
 ## Template for Next Entry
 
 ## YYYY-MM-DD - [Session Title]
@@ -262,14 +334,14 @@
 These 7 features must be complete before Phase 1 ships:
 
 1. ✅ UCNet device discovery (network + USB) - **COMPLETE** (TASK-001)
-2. ⏳ MIDI device enumeration (TASK-002)
+2. ✅ MIDI device enumeration - **COMPLETE** (TASK-002)
 3. ⏳ Basic parameter mapping (volume, mute, pan) (TASK-003)
 4. ⏳ Bidirectional sync (< 10ms latency) (TASK-004)
 5. ⏳ MIDI Learn functionality (TASK-005)
 6. ⏳ Save/Load projects (TASK-006)
 7. ⏳ Visual feedback (on-screen faders) (TASK-007)
 
-**Current Progress:** 1/7 complete (14%)
+**Current Progress:** 2/7 complete (29%)
 
 ---
 

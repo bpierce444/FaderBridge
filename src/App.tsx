@@ -1,4 +1,5 @@
 import { DeviceManager } from "./features/DeviceManager";
+import { MidiDeviceList } from "./features/MidiDeviceList";
 
 function App() {
   return (
@@ -15,15 +16,25 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto">
-          <DeviceManager />
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* MIDI Devices */}
+            <div className="bg-slate-900 p-6 rounded-lg border border-slate-800">
+              <MidiDeviceList />
+            </div>
+
+            {/* UCNet Devices */}
+            <div className="bg-slate-900 p-6 rounded-lg border border-slate-800">
+              <DeviceManager />
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
         <div className="mt-12 text-center text-slate-500 text-sm">
           <p>Phase 1 MVP - Development Build</p>
           <p className="mt-2">
-            Status: 1/7 tasks complete (TASK-001: UCNet Device Discovery)
+            Status: 2/7 tasks complete (TASK-001: UCNet, TASK-002: MIDI)
           </p>
         </div>
       </div>

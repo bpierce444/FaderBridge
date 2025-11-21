@@ -1,4 +1,13 @@
 // MIDI device enumeration and communication
-// This module will handle MIDI device discovery and message handling
+// This module handles MIDI device discovery, connection management, and message handling
 
-// TODO: Implement for TASK-002
+pub mod connection;
+pub mod enumeration;
+pub mod error;
+pub mod types;
+
+// Re-export commonly used types
+pub use connection::MidiConnectionManager;
+pub use enumeration::{DeviceEnumerator, MidiDeviceManager, MidirEnumerator};
+pub use error::{MidiError, MidiResult};
+pub use types::{MidiConnectionStatus, MidiDevice, MidiDeviceType, MidiMessageType};
