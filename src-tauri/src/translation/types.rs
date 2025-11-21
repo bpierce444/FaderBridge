@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// UCNet parameter types that can be controlled
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UcNetParameterType {
     /// Channel volume/fader (0.0 to 1.0)
@@ -146,6 +146,28 @@ impl ParameterMapping {
             use_14bit: false,
             midi_controller_msb: None,
             midi_controller_lsb: None,
+        }
+    }
+
+    /// Creates a new 14-bit pan mapping from MIDI CC MSB/LSB to UCNet channel
+    pub fn new_pan_14bit(
+        midi_channel: u8,
+        midi_controller_msb: u8,
+        midi_controller_lsb: u8,
+        ucnet_device_id: String,
+        ucnet_channel: u32,
+    ) -> Self {
+        Self {
+            midi_channel,
+            midi_controller: None,
+            midi_note: None,
+            ucnet_device_id,
+            ucnet_channel,
+            parameter_type: UcNetParameterType::Pan,
+            taper_curve: TaperCurve::Linear,
+            use_14bit: true,
+            midi_controller_msb: Some(midi_controller_msb),
+            midi_controller_lsb: Some(midi_controller_lsb),
         }
     }
 }

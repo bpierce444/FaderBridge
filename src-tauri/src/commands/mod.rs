@@ -1,10 +1,12 @@
 //! Tauri command handlers
 
 pub mod midi;
+pub mod sync;
 pub mod ucnet;
 
 // Re-export state types
 pub use midi::MidiState;
+pub use sync::SyncState;
 pub use ucnet::UcNetState;
 
 /// Temporary greeting command for initial testing

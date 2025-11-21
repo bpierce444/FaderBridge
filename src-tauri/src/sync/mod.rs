@@ -1,4 +1,10 @@
-// Bidirectional synchronization engine
-// This module will handle state management and feedback loops
+//! Bidirectional synchronization engine
+//!
+//! This module handles state management, feedback loop prevention, and
+//! orchestrates synchronization between MIDI controllers and UCNet devices.
 
-// TODO: Implement for TASK-004
+pub mod engine;
+pub mod shadow_state;
+
+pub use engine::{LatencyStats, SyncEngine, SyncEvent, SyncSource};
+pub use shadow_state::{ParameterId, ShadowState};

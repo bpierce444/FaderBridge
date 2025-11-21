@@ -8,7 +8,7 @@ mod sync;
 mod translation;
 mod ucnet;
 
-use commands::{MidiState, UcNetState};
+use commands::{MidiState, SyncState, UcNetState};
 use log::info;
 
 fn main() {
@@ -20,11 +20,13 @@ fn main() {
     // Initialize state
     let ucnet_state = UcNetState::new();
     let midi_state = MidiState::new();
+    let sync_state = SyncState::new();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(ucnet_state)
         .manage(midi_state)
+        .manage(sync_state)
         .invoke_handler(tauri::generate_handler![
             commands::greet,
             commands::ucnet::discover_devices,
@@ -37,6 +39,15 @@ fn main() {
             commands::midi::connect_midi_device,
             commands::midi::disconnect_midi_device,
             commands::midi::check_midi_device_changes,
+            commands::sync::init_sync_engine,
+            commands::sync::add_parameter_mapping,
+            commands::sync::remove_parameter_mapping,
+            commands::sync::clear_parameter_mappings,
+            commands::sync::get_parameter_mappings,
+            commands::sync::get_latency_stats,
+            commands::sync::clear_latency_stats,
+            commands::sync::clear_device_state,
+            commands::sync::clear_all_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
