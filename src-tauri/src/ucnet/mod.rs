@@ -1,4 +1,15 @@
-// UCNet protocol implementation
-// This module will handle device discovery and communication with PreSonus devices
+//! UCNet protocol implementation
+//!
+//! This module handles device discovery and communication with PreSonus UCNet devices,
+//! supporting both network (UDP/TCP) and USB connections.
 
-// TODO: Implement for TASK-001
+pub mod connection;
+pub mod discovery;
+pub mod error;
+pub mod types;
+
+// Re-export commonly used types
+pub use connection::{ConnectionEvent, ConnectionManager};
+pub use discovery::{DefaultDeviceDiscovery, DeviceDiscovery};
+pub use error::{Result, UcNetError};
+pub use types::{ConnectionState, ConnectionType, UcNetDevice};
