@@ -48,13 +48,40 @@ Use these Windsurf workflows to manage tasks:
 ## Phase 1 MVP Tasks
 The following tasks are locked for Phase 1 (see PROJECT_CHARTER.md):
 
-1. TASK-001: UCNet device discovery (network + USB)
-2. TASK-002: MIDI device enumeration
-3. TASK-003: Basic parameter mapping (volume, mute, pan)
-4. TASK-004: Bidirectional sync (< 10ms latency)
-5. TASK-005: MIDI Learn functionality
-6. TASK-006: Save/Load projects
-7. TASK-007: Visual feedback (on-screen faders)
+1. **TASK-001:** UCNet device discovery (network + USB)
+   - Status: 🔴 Not Started
+   - File: `TASK-001-ucnet-device-discovery.md`
+   
+2. **TASK-002:** MIDI device enumeration
+   - Status: 🔴 Not Started
+   - File: `TASK-002-midi-device-enumeration.md`
+   
+3. **TASK-003:** Basic parameter mapping (volume, mute, pan)
+   - Status: 🔴 Not Started
+   - File: `TASK-003-basic-parameter-mapping.md`
+   - Depends on: TASK-001, TASK-002
+   
+4. **TASK-004:** Bidirectional sync (< 10ms latency)
+   - Status: 🔴 Not Started
+   - File: `TASK-004-bidirectional-sync.md`
+   - Depends on: TASK-001, TASK-002, TASK-003
+   
+5. **TASK-005:** MIDI Learn functionality
+   - Status: 🔴 Not Started
+   - File: `TASK-005-midi-learn.md`
+   - Depends on: TASK-002, TASK-003
+   
+6. **TASK-006:** Save/Load projects
+   - Status: 🔴 Not Started
+   - File: `TASK-006-save-load-projects.md`
+   - Depends on: TASK-003, TASK-005
+   
+7. **TASK-007:** Visual feedback (on-screen faders)
+   - Status: 🔴 Not Started
+   - File: `TASK-007-visual-feedback.md`
+   - Depends on: TASK-003, TASK-004
+
+**Current Progress:** 0/7 Complete
 
 ## Best Practices
 - **One Task at a Time:** Follow the "One Feature Rule" from FEATURE_PRIORITIZATION.md
