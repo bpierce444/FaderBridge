@@ -40,7 +40,7 @@ describe('useAutoSave', () => {
   });
 
   it('does not save if not marked dirty', async () => {
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useAutoSave({
         projectId: 1,
         interval: 1000,

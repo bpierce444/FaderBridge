@@ -1,7 +1,7 @@
 {
   "productName": "FaderBridge",
   "version": "0.1.0",
-  "identifier": "com.faderbridge.app",
+  "identifier": "com.presonus.faderbridge",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -29,21 +29,21 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "targets": "all",
     "icon": [],
     "resources": [],
     "copyright": "Copyright © 2025 FaderBridge Contributors",
-    "category": "AudioVideo",
+    "category": "public.app-category.music",
     "shortDescription": "MIDI-to-UCNet bridge for PreSonus hardware",
     "longDescription": "FaderBridge is a professional middleware application that bridges standard MIDI controllers with PreSonus UCNet-enabled devices, providing low-latency bidirectional control.",
     "macOS": {
       "minimumSystemVersion": "10.15",
-      "entitlements": null,
+      "entitlements": "entitlements.plist",
       "exceptionDomain": "",
       "frameworks": [],
       "providerShortName": null,
-      "signingIdentity": null
+      "signingIdentity": "Apple Development: Benjamin Pierce (ZPJKTW55M2)"
     },
     "windows": {
       "certificateThumbprint": null,

@@ -22,7 +22,7 @@ tokio = { version = "1.40", features = ["full"] }
 thiserror = "2.0"
 
 # MIDI support
-midir = "0.10"
+midir = "0.10.3"
 
 # USB support
 rusb = "0.9"

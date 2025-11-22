@@ -50,6 +50,26 @@ impl MidirEnumerator {
         name.split_whitespace().next().map(|s| s.to_string())
     }
 
+    /// Check if a MIDI device is actually a UCNet device that should be excluded
+    /// UCNet devices (mixers/interfaces) should only appear in UCNet discovery
+    fn is_ucnet_midi_device(name: &str) -> bool {
+        let ucnet_keywords = [
+            "StudioLive", "Studio Live", "Series III", "Quantum",
+            "NSB", "RM", "AI", // PreSonus rack mixers and interfaces
+        ];
+        
+        // Check if this is a PreSonus device with UCNet capability
+        if name.contains("PreSonus") {
+            for keyword in &ucnet_keywords {
+                if name.contains(keyword) {
+                    return true;
+                }
+            }
+        }
+        
+        false
+    }
+
     /// Generate a unique ID for a device
     fn generate_device_id(device_type: MidiDeviceType, port: usize, name: &str) -> String {
         format!("{:?}:{}:{}", device_type, port, name)
@@ -64,13 +84,40 @@ impl Default for MidirEnumerator {
 
 impl DeviceEnumerator for MidirEnumerator {
     fn discover_inputs(&self) -> MidiResult<Vec<MidiDevice>> {
-        let midi_in = MidiInput::new("FaderBridge-Enum")?;
+        // Try to create MIDI input with retry for macOS permissions
+        let midi_in = match MidiInput::new("FaderBridge-Enum") {
+            Ok(input) => input,
+            Err(e) => {
+                // On macOS, CoreMIDI might need a moment after permissions are granted
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                MidiInput::new("FaderBridge-Enum")
+                    .map_err(|_| MidiError::InitializationError(format!(
+                        "Failed to initialize MIDI input. Original error: {}. \
+                        On macOS, please ensure FaderBridge has Microphone permission in System Settings > Privacy & Security.",
+                        e
+                    )))?
+            }
+        };
         let ports = midi_in.ports();
         
         let mut devices = Vec::new();
         for (idx, port) in ports.iter().enumerate() {
-            let name = midi_in.port_name(port)
-                .unwrap_or_else(|_| format!("MIDI Input {}", idx));
+            let name = match midi_in.port_name(port) {
+                Ok(n) => {
+                    log::info!("Found MIDI input port {}: {}", idx, n);
+                    n
+                }
+                Err(e) => {
+                    log::warn!("Failed to get MIDI input port {} name: {}", idx, e);
+                    format!("MIDI Input {}", idx)
+                }
+            };
+            
+            // Skip UCNet devices - they should only appear in UCNet discovery
+            if Self::is_ucnet_midi_device(&name) {
+                log::info!("Skipping UCNet device in MIDI enumeration: {}", name);
+                continue;
+            }
             
             let manufacturer = Self::extract_manufacturer(&name);
             let id = Self::generate_device_id(MidiDeviceType::Input, idx, &name);
@@ -89,13 +136,40 @@ impl DeviceEnumerator for MidirEnumerator {
     }
 
     fn discover_outputs(&self) -> MidiResult<Vec<MidiDevice>> {
-        let midi_out = MidiOutput::new("FaderBridge-Enum")?;
+        // Try to create MIDI output with retry for macOS permissions
+        let midi_out = match MidiOutput::new("FaderBridge-Enum") {
+            Ok(output) => output,
+            Err(e) => {
+                // On macOS, CoreMIDI might need a moment after permissions are granted
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                MidiOutput::new("FaderBridge-Enum")
+                    .map_err(|_| MidiError::InitializationError(format!(
+                        "Failed to initialize MIDI output. Original error: {}. \
+                        On macOS, please ensure FaderBridge has Microphone permission in System Settings > Privacy & Security.",
+                        e
+                    )))?
+            }
+        };
         let ports = midi_out.ports();
         
         let mut devices = Vec::new();
         for (idx, port) in ports.iter().enumerate() {
-            let name = midi_out.port_name(port)
-                .unwrap_or_else(|_| format!("MIDI Output {}", idx));
+            let name = match midi_out.port_name(port) {
+                Ok(n) => {
+                    log::info!("Found MIDI output port {}: {}", idx, n);
+                    n
+                }
+                Err(e) => {
+                    log::warn!("Failed to get MIDI output port {} name: {}", idx, e);
+                    format!("MIDI Output {}", idx)
+                }
+            };
+            
+            // Skip UCNet devices - they should only appear in UCNet discovery
+            if Self::is_ucnet_midi_device(&name) {
+                log::info!("Skipping UCNet device in MIDI enumeration: {}", name);
+                continue;
+            }
             
             let manufacturer = Self::extract_manufacturer(&name);
             let id = Self::generate_device_id(MidiDeviceType::Output, idx, &name);

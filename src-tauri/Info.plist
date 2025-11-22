@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- MIDI Access Permission -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>FaderBridge needs access to MIDI devices to control your PreSonus mixer and interfaces.</string>
+    
+    <!-- USB Device Access -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>FaderBridge needs to communicate with USB MIDI controllers and PreSonus devices.</string>
+    
+    <!-- Network Access -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>FaderBridge needs network access to discover and communicate with PreSonus UCNet devices on your local network.</string>
+    
+    <!-- Bonjour Services for UCNet Discovery -->
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_ucnet._udp</string>
+        <string>_presonus._udp</string>
+    </array>
+</dict>
+</plist>

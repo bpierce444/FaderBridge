@@ -2,6 +2,25 @@
 
 ## Device Discovery Issues
 
+### MIDI Initialization Failed (FIXED)
+**Problem:** Console shows "Failed to initialize MIDI: MIDI support could not be initialized" and "error connecting MIDI input port".
+
+**Root Cause:** macOS requires explicit permissions for MIDI access, and the app was missing required entitlements.
+
+**Solution (Fixed):**
+1. Added `entitlements.plist` with MIDI/USB/Network permissions
+2. Added `Info.plist` with privacy usage descriptions
+3. Added CoreMIDI framework to Tauri configuration
+4. Disabled App Sandbox for MIDI access
+
+**After Fix:**
+- Restart the dev server: `npm run tauri:dev`
+- macOS may prompt for permissions on first launch
+- Grant "Microphone" access (required for MIDI on macOS)
+- MIDI devices should now enumerate properly
+
+---
+
 ### MIDI Devices Change to "Generic" After UCNet Refresh (KNOWN ISSUE)
 **Problem:** When clicking "Refresh" on the Mixers & Interfaces panel, MIDI controller names change to generic names like "MIDI Input".
 
