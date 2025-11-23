@@ -125,19 +125,22 @@ impl DeviceDiscovery for DefaultDeviceDiscovery {
                 }
             };
             
-            // Check if this is a PreSonus UCNet device (not just any PreSonus device)
-            if device_desc.vendor_id() == PRESONUS_VENDOR_ID {
-                let product_id = device_desc.product_id();
+            let vendor_id = device_desc.vendor_id();
+            let product_id = device_desc.product_id();
+            
+            // Check if this is a PreSonus or Fender (PreSonus parent company) UCNet device
+            if vendor_id == PRESONUS_VENDOR_ID || vendor_id == super::types::constants::FENDER_VENDOR_ID {
                 debug!(
-                    "Found PreSonus device: VID=0x{:04x}, PID=0x{:04x}",
-                    device_desc.vendor_id(),
+                    "Found PreSonus/Fender device: VID=0x{:04x}, PID=0x{:04x}",
+                    vendor_id,
                     product_id
                 );
                 
                 // Only include devices that are UCNet-capable
                 if !super::types::constants::is_ucnet_device(product_id) {
                     debug!(
-                        "Skipping non-UCNet PreSonus device (PID=0x{:04x}) - likely a MIDI controller",
+                        "Skipping non-UCNet device (VID=0x{:04x}, PID=0x{:04x}) - likely a MIDI controller",
+                        vendor_id,
                         product_id
                     );
                     continue;

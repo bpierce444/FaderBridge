@@ -1,5 +1,6 @@
+use crate::midi::device_database::{DeviceCategory, DeviceDatabase};
 use crate::midi::error::{MidiError, MidiResult};
-use crate::midi::types::{MidiDevice, MidiDeviceType, MidiConnectionStatus};
+use crate::midi::types::{MidiConnectionStatus, MidiDevice, MidiDeviceType};
 use midir::{MidiInput, MidiOutput};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -22,12 +23,16 @@ pub trait DeviceEnumerator: Send + Sync {
 }
 
 /// Real MIDI device enumerator using midir
-pub struct MidirEnumerator;
+pub struct MidirEnumerator {
+    device_db: DeviceDatabase,
+}
 
 impl MidirEnumerator {
     /// Create a new MidirEnumerator
     pub fn new() -> Self {
-        Self
+        Self {
+            device_db: DeviceDatabase::new(),
+        }
     }
 
     /// Extract manufacturer name from device name if possible
@@ -50,37 +55,14 @@ impl MidirEnumerator {
         name.split_whitespace().next().map(|s| s.to_string())
     }
 
-    /// Check if a MIDI device is actually a UCNet audio interface that should be excluded
-    /// Only audio I/O interfaces should appear in UCNet discovery, not MIDI control surfaces
-    fn is_ucnet_midi_device(name: &str) -> bool {
-        // UCNET MIDI devices are MIDI controllers, not audio interfaces
-        // They should stay in the Controllers column
-        if name.contains("UCNET MIDI") || name.contains("UCNet MIDI") {
-            return false;
-        }
+    /// Check if a MIDI device should be excluded from the Controllers list
+    /// Returns true if the device is an audio interface that belongs in Mixers & Interfaces
+    fn should_exclude_from_controllers(&self, name: &str) -> bool {
+        // Use the database to categorize the device
+        let category = self.device_db.categorize_device(name, None, None);
         
-        // Quantum devices (audio interfaces) should be in Mixers & Interfaces
-        if name.contains("Quantum") {
-            // But only if it's the audio/control interface, not a generic MIDI port
-            // Quantum devices typically have "Control" or "MIDI" in the name
-            // "Quantum HD 2 Control" -> audio interface (exclude from MIDI)
-            // "Quantum HD 2 MIDI" -> MIDI port (exclude from MIDI)
-            if name.contains("Control") || name.contains("MIDI") {
-                return true;
-            }
-        }
-        
-        // StudioLive USB audio interface (not the UCNET MIDI control)
-        // This would appear as something like "StudioLive 32SC" without "UCNET MIDI"
-        if name.contains("StudioLive") && !name.contains("UCNET MIDI") {
-            // Check if it's the audio interface portion
-            // Audio interfaces typically don't have "MIDI" in the name
-            if !name.contains("MIDI") {
-                return true;
-            }
-        }
-        
-        false
+        // Exclude if it's categorized as an audio interface
+        matches!(category, DeviceCategory::AudioInterface)
     }
 
     /// Generate a unique ID for a device
@@ -126,9 +108,9 @@ impl DeviceEnumerator for MidirEnumerator {
                 }
             };
             
-            // Skip UCNet devices - they should only appear in UCNet discovery
-            if Self::is_ucnet_midi_device(&name) {
-                log::info!("Skipping UCNet device in MIDI enumeration: {}", name);
+            // Skip audio interfaces - they should only appear in UCNet discovery
+            if self.should_exclude_from_controllers(&name) {
+                log::info!("Skipping audio interface in MIDI enumeration: {}", name);
                 continue;
             }
             
@@ -178,9 +160,9 @@ impl DeviceEnumerator for MidirEnumerator {
                 }
             };
             
-            // Skip UCNet devices - they should only appear in UCNet discovery
-            if Self::is_ucnet_midi_device(&name) {
-                log::info!("Skipping UCNet device in MIDI enumeration: {}", name);
+            // Skip audio interfaces - they should only appear in UCNet discovery
+            if self.should_exclude_from_controllers(&name) {
+                log::info!("Skipping audio interface in MIDI enumeration: {}", name);
                 continue;
             }
             

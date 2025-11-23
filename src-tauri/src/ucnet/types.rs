@@ -79,6 +79,9 @@ pub mod constants {
     /// PreSonus vendor ID for USB devices
     pub const PRESONUS_VENDOR_ID: u16 = 0x194f;
     
+    /// Fender vendor ID (Fender owns PreSonus, some devices use this ID)
+    pub const FENDER_VENDOR_ID: u16 = 0x1ED8;
+    
     /// UDP port for UCNet discovery broadcasts
     pub const UCNET_DISCOVERY_PORT: u16 = 47809;
     
@@ -92,12 +95,13 @@ pub mod constants {
     pub const CONNECTION_TIMEOUT_SECS: u64 = 15;
     
     /// Known UCNet-capable device product IDs (USB)
-    /// These are the ONLY PreSonus devices that support UCNet protocol
+    /// These are the ONLY PreSonus/Fender devices that support UCNet protocol
     pub const UCNET_USB_PRODUCT_IDS: &[u16] = &[
-        0x8186, // Quantum HD8
-        0x8187, // Quantum HD4
-        0x8188, // Quantum 26x32
-        0x8189, // Quantum 4848
+        0x8186, // Quantum HD8 (PreSonus VID)
+        0x8187, // Quantum HD4 (PreSonus VID)
+        0x8188, // Quantum 26x32 (PreSonus VID)
+        0x8189, // Quantum 4848 (PreSonus VID)
+        0x020E, // Quantum HD 2 (Fender VID)
         // Note: Series III mixers (32SX, 24R, etc.) typically use network UCNet, not USB
         // FaderPort devices (0x1800-0x180F range) are MIDI controllers, NOT UCNet devices
     ];

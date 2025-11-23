@@ -48,7 +48,16 @@ pub async fn connect_midi_device(
     device_type: MidiDeviceType,
     state: State<'_, MidiState>,
 ) -> Result<(), String> {
-    // Get device info
+    // Refresh device list to get current port numbers
+    {
+        let device_manager = state.device_manager.lock()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+        
+        device_manager.discover_devices()
+            .map_err(|e| format!("Failed to refresh devices: {}", e))?;
+    }
+    
+    // Get device info with fresh port number
     let device = {
         let device_manager = state.device_manager.lock()
             .map_err(|e| format!("Failed to acquire lock: {}", e))?;
