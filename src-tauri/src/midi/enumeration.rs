@@ -50,20 +50,33 @@ impl MidirEnumerator {
         name.split_whitespace().next().map(|s| s.to_string())
     }
 
-    /// Check if a MIDI device is actually a UCNet device that should be excluded
-    /// UCNet devices (mixers/interfaces) should only appear in UCNet discovery
+    /// Check if a MIDI device is actually a UCNet audio interface that should be excluded
+    /// Only audio I/O interfaces should appear in UCNet discovery, not MIDI control surfaces
     fn is_ucnet_midi_device(name: &str) -> bool {
-        let ucnet_keywords = [
-            "StudioLive", "Studio Live", "Series III", "Quantum",
-            "NSB", "RM", "AI", // PreSonus rack mixers and interfaces
-        ];
+        // UCNET MIDI devices are MIDI controllers, not audio interfaces
+        // They should stay in the Controllers column
+        if name.contains("UCNET MIDI") || name.contains("UCNet MIDI") {
+            return false;
+        }
         
-        // Check if this is a PreSonus device with UCNet capability
-        if name.contains("PreSonus") {
-            for keyword in &ucnet_keywords {
-                if name.contains(keyword) {
-                    return true;
-                }
+        // Quantum devices (audio interfaces) should be in Mixers & Interfaces
+        if name.contains("Quantum") {
+            // But only if it's the audio/control interface, not a generic MIDI port
+            // Quantum devices typically have "Control" or "MIDI" in the name
+            // "Quantum HD 2 Control" -> audio interface (exclude from MIDI)
+            // "Quantum HD 2 MIDI" -> MIDI port (exclude from MIDI)
+            if name.contains("Control") || name.contains("MIDI") {
+                return true;
+            }
+        }
+        
+        // StudioLive USB audio interface (not the UCNET MIDI control)
+        // This would appear as something like "StudioLive 32SC" without "UCNET MIDI"
+        if name.contains("StudioLive") && !name.contains("UCNET MIDI") {
+            // Check if it's the audio interface portion
+            // Audio interfaces typically don't have "MIDI" in the name
+            if !name.contains("MIDI") {
+                return true;
             }
         }
         
@@ -255,36 +268,46 @@ impl MidiDeviceManager {
 
     /// Check for device changes (hot-plug detection)
     /// Returns (added_devices, removed_devices)
+    /// 
+    /// Note: This only checks port counts to avoid repeatedly calling port_name()
+    /// which can fail on macOS when called too frequently. If changes are detected,
+    /// the frontend should call discover_devices() to get the full list.
     pub fn check_for_changes(&self) -> MidiResult<(Vec<MidiDevice>, Vec<MidiDevice>)> {
-        let current_devices = self.enumerator.discover_all()?;
+        use midir::{MidiInput, MidiOutput};
+        
+        // Quick check: just count ports without getting names
+        let input_count = MidiInput::new("FaderBridge-Check")
+            .map(|midi_in| midi_in.ports().len())
+            .unwrap_or(0);
+        
+        let output_count = MidiOutput::new("FaderBridge-Check")
+            .map(|midi_out| midi_out.ports().len())
+            .unwrap_or(0);
+        
         let cache = self.cached_devices.read()
             .map_err(|e| MidiError::Other(format!("Failed to acquire cache lock: {}", e)))?;
         
-        let current_ids: HashMap<String, MidiDevice> = current_devices
-            .iter()
-            .map(|d| (d.id.clone(), d.clone()))
-            .collect();
+        let cached_input_count = cache.values()
+            .filter(|d| d.device_type == MidiDeviceType::Input)
+            .count();
         
-        let cached_ids: HashMap<String, MidiDevice> = cache
-            .iter()
-            .map(|(id, d)| (id.clone(), d.clone()))
-            .collect();
+        let cached_output_count = cache.values()
+            .filter(|d| d.device_type == MidiDeviceType::Output)
+            .count();
         
-        // Find added devices
-        let added: Vec<MidiDevice> = current_ids
-            .iter()
-            .filter(|(id, _)| !cached_ids.contains_key(*id))
-            .map(|(_, d)| d.clone())
-            .collect();
-        
-        // Find removed devices
-        let removed: Vec<MidiDevice> = cached_ids
-            .iter()
-            .filter(|(id, _)| !current_ids.contains_key(*id))
-            .map(|(_, d)| d.clone())
-            .collect();
-        
-        Ok((added, removed))
+        // If counts changed, return empty vectors to signal a change
+        // The frontend will call discover_devices() to get the actual changes
+        if input_count != cached_input_count || output_count != cached_output_count {
+            log::info!(
+                "MIDI device count changed: inputs {} -> {}, outputs {} -> {}",
+                cached_input_count, input_count, cached_output_count, output_count
+            );
+            // Return empty vectors but signal that a change occurred
+            // Frontend should call discover_devices() to refresh
+            Ok((vec![], vec![]))
+        } else {
+            Ok((vec![], vec![]))
+        }
     }
 }
 
