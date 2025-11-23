@@ -48,6 +48,10 @@ pub async fn connect_midi_device(
     device_type: MidiDeviceType,
     state: State<'_, MidiState>,
 ) -> Result<(), String> {
+    // Extract device name from ID (format is "Type:Port:Name")
+    let device_name = device_id.split(':').nth(2)
+        .ok_or_else(|| format!("Invalid device ID format: {}", device_id))?;
+    
     // Refresh device list to get current port numbers
     {
         let device_manager = state.device_manager.lock()
@@ -57,14 +61,17 @@ pub async fn connect_midi_device(
             .map_err(|e| format!("Failed to refresh devices: {}", e))?;
     }
     
-    // Get device info with fresh port number
+    // Find device by name and type (port number may have changed)
     let device = {
         let device_manager = state.device_manager.lock()
             .map_err(|e| format!("Failed to acquire lock: {}", e))?;
         
-        device_manager.get_device(&device_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("Device not found: {}", device_id))?
+        let devices = device_manager.get_cached_devices()
+            .map_err(|e| e.to_string())?;
+        
+        devices.into_iter()
+            .find(|d| d.name == device_name && d.device_type == device_type)
+            .ok_or_else(|| format!("Device not found: {}", device_name))?
     };
 
     // Connect to device
@@ -82,11 +89,11 @@ pub async fn connect_midi_device(
         }
     }
 
-    // Update device status
+    // Update device status using the fresh device ID
     let device_manager = state.device_manager.lock()
         .map_err(|e| format!("Failed to acquire lock: {}", e))?;
     
-    device_manager.update_device_status(&device_id, MidiConnectionStatus::Connected)
+    device_manager.update_device_status(&device.id, MidiConnectionStatus::Connected)
         .map_err(|e| e.to_string())?;
 
     Ok(())
