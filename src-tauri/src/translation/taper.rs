@@ -81,6 +81,59 @@ pub fn normalized_to_midi_14bit(value: f32) -> (u8, u8) {
     (msb, lsb)
 }
 
+/// Reverses a taper curve to convert from tapered output back to normalized input
+///
+/// This is used for UCNet → MIDI reverse mapping, where we need to convert
+/// a UCNet parameter value (which may have been tapered) back to a MIDI value.
+///
+/// # Arguments
+/// * `output` - Tapered output value (0.0 to 1.0)
+/// * `curve` - The taper curve to reverse
+///
+/// # Returns
+/// Normalized input value (0.0 to 1.0)
+pub fn reverse_taper(output: f32, curve: TaperCurve) -> f32 {
+    // Clamp output to valid range
+    let output = output.clamp(0.0, 1.0);
+    
+    match curve {
+        TaperCurve::Linear => reverse_linear_taper(output),
+        TaperCurve::Logarithmic => reverse_logarithmic_taper(output),
+        TaperCurve::AudioTaper => reverse_audio_taper(output),
+    }
+}
+
+/// Reverses linear taper: 1:1 mapping (inverse is same as forward)
+fn reverse_linear_taper(output: f32) -> f32 {
+    output
+}
+
+/// Reverses logarithmic taper: 2^(output * log2(2)) - 1
+///
+/// Inverse of: log(input + 1) / log(2)
+fn reverse_logarithmic_taper(output: f32) -> f32 {
+    if output <= 0.0 {
+        0.0
+    } else if output >= 1.0 {
+        1.0
+    } else {
+        // Inverse: input = 2^(output * log2(2)) - 1
+        // Simplified: input = 2^output - 1
+        2.0_f32.powf(output) - 1.0
+    }
+}
+
+/// Reverses audio taper: output^(1/2.5)
+///
+/// Inverse of: input^2.5
+fn reverse_audio_taper(output: f32) -> f32 {
+    if output <= 0.0 {
+        0.0
+    } else {
+        output.powf(1.0 / 2.5)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -191,5 +244,48 @@ mod tests {
             assert!((back_msb as i16 - msb as i16).abs() <= 1);
             assert!((back_lsb as i16 - lsb as i16).abs() <= 1);
         }
+    }
+
+    #[test]
+    fn test_reverse_linear_taper() {
+        // Linear taper is its own inverse
+        assert_eq!(reverse_taper(0.0, TaperCurve::Linear), 0.0);
+        assert_eq!(reverse_taper(0.5, TaperCurve::Linear), 0.5);
+        assert_eq!(reverse_taper(1.0, TaperCurve::Linear), 1.0);
+    }
+
+    #[test]
+    fn test_reverse_audio_taper() {
+        // Test that reverse_taper(apply_taper(x)) ≈ x
+        let test_values = vec![0.0, 0.25, 0.5, 0.75, 1.0];
+        
+        for input in test_values {
+            let tapered = apply_taper(input, TaperCurve::AudioTaper);
+            let reversed = reverse_taper(tapered, TaperCurve::AudioTaper);
+            assert!((reversed - input).abs() < 0.001, 
+                "Failed for input {}: tapered={}, reversed={}", input, tapered, reversed);
+        }
+    }
+
+    #[test]
+    fn test_reverse_logarithmic_taper() {
+        // Test that reverse_taper(apply_taper(x)) ≈ x
+        let test_values = vec![0.0, 0.25, 0.5, 0.75, 1.0];
+        
+        for input in test_values {
+            let tapered = apply_taper(input, TaperCurve::Logarithmic);
+            let reversed = reverse_taper(tapered, TaperCurve::Logarithmic);
+            assert!((reversed - input).abs() < 0.001,
+                "Failed for input {}: tapered={}, reversed={}", input, tapered, reversed);
+        }
+    }
+
+    #[test]
+    fn test_reverse_taper_clamping() {
+        // Test that values outside 0-1 are clamped
+        assert_eq!(reverse_taper(-0.5, TaperCurve::Linear), 0.0);
+        assert_eq!(reverse_taper(1.5, TaperCurve::Linear), 1.0);
+        assert_eq!(reverse_taper(-0.5, TaperCurve::AudioTaper), 0.0);
+        assert_eq!(reverse_taper(1.5, TaperCurve::AudioTaper), 1.0);
     }
 }

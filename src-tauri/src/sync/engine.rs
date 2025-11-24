@@ -203,7 +203,6 @@ impl SyncEngine {
     /// Handles a UCNet parameter change from the mixer
     ///
     /// Updates shadow state and returns MIDI messages to send to controllers.
-    /// This is for future implementation when UCNet → MIDI is supported.
     ///
     /// # Arguments
     /// * `device_id` - UCNet device ID
@@ -235,6 +234,11 @@ impl SyncEngine {
         shadow.update(param_id, value.clone());
         drop(shadow);
 
+        // Perform reverse mapping (UCNet → MIDI)
+        let mapper = self.mapper.read().await;
+        let midi_messages = mapper.reverse_translate(&device_id, channel, parameter_type, value.clone());
+        drop(mapper);
+
         // Measure latency
         let latency_ms = start_time.elapsed().as_secs_f64() * 1000.0;
         self.record_latency(latency_ms).await;
@@ -257,13 +261,11 @@ impl SyncEngine {
         });
 
         debug!(
-            "UCNet→MIDI: {} ch{} {:?} = {:?} ({:.2}ms)",
-            device_id, channel, parameter_type, value, latency_ms
+            "UCNet→MIDI: {} ch{} {:?} = {:?} → {} MIDI messages ({:.2}ms)",
+            device_id, channel, parameter_type, value, midi_messages.len(), latency_ms
         );
 
-        // TODO: Implement reverse mapping (UCNet → MIDI)
-        // This will require a reverse lookup in the parameter mapper
-        Vec::new()
+        midi_messages
     }
 
     /// Records a latency measurement
@@ -509,6 +511,16 @@ mod tests {
     async fn test_handle_ucnet_change() {
         let (engine, mut rx) = SyncEngine::default();
 
+        // Add a mapping for reverse translation
+        let mapping = ParameterMapping::new_volume(
+            0,
+            7,
+            "device-1".to_string(),
+            1,
+            TaperCurve::Linear,
+        );
+        engine.add_mapping(mapping).await;
+
         let results = engine
             .handle_ucnet_change(
                 "device-1".to_string(),
@@ -518,8 +530,16 @@ mod tests {
             )
             .await;
 
-        // Currently returns empty (reverse mapping not implemented)
-        assert_eq!(results.len(), 0);
+        // Should return MIDI messages now
+        assert_eq!(results.len(), 1);
+        match results[0] {
+            MidiMessageType::ControlChange { channel, controller, value } => {
+                assert_eq!(channel, 0);
+                assert_eq!(controller, 7);
+                assert_eq!(value, 64); // 0.5 * 127 ≈ 64
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
 
         // Check events
         let event = rx.recv().await.unwrap();
@@ -530,5 +550,41 @@ mod tests {
             }
             _ => panic!("Expected UcNetChanged event"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_ucnet_change_feedback_prevention() {
+        let (engine, _rx) = SyncEngine::default();
+
+        let mapping = ParameterMapping::new_volume(
+            0,
+            7,
+            "device-1".to_string(),
+            1,
+            TaperCurve::Linear,
+        );
+        engine.add_mapping(mapping).await;
+
+        // First change should produce MIDI messages
+        let results1 = engine
+            .handle_ucnet_change(
+                "device-1".to_string(),
+                1,
+                UcNetParameterType::Volume,
+                UcNetParameterValue::Float(0.5),
+            )
+            .await;
+        assert_eq!(results1.len(), 1);
+
+        // Second identical change should be filtered
+        let results2 = engine
+            .handle_ucnet_change(
+                "device-1".to_string(),
+                1,
+                UcNetParameterType::Volume,
+                UcNetParameterValue::Float(0.5),
+            )
+            .await;
+        assert_eq!(results2.len(), 0);
     }
 }

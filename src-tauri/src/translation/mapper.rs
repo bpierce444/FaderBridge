@@ -1,8 +1,9 @@
 //! Parameter mapper for translating MIDI messages to UCNet parameters
 
 use crate::midi::types::MidiMessageType;
-use super::taper::{apply_taper, midi_7bit_to_normalized, midi_14bit_to_normalized};
+use super::taper::{apply_taper, midi_7bit_to_normalized, midi_14bit_to_normalized, reverse_taper, normalized_to_midi_7bit, normalized_to_midi_14bit};
 use super::types::{ParameterMapping, UcNetParameterType, UcNetParameterValue};
+use std::collections::HashMap;
 
 /// Result of a parameter mapping operation
 #[derive(Debug, Clone, PartialEq)]
@@ -17,12 +18,17 @@ pub struct MappingResult {
     pub value: UcNetParameterValue,
 }
 
+/// Key for reverse lookup: (device_id, channel, parameter_type)
+type UcNetAddress = (String, u32, UcNetParameterType);
+
 /// Parameter mapper that translates MIDI messages to UCNet parameters
 pub struct ParameterMapper {
     /// Active parameter mappings
     mappings: Vec<ParameterMapping>,
     /// Cache for 14-bit MIDI CC MSB values (channel, controller) -> value
-    msb_cache: std::collections::HashMap<(u8, u8), u8>,
+    msb_cache: HashMap<(u8, u8), u8>,
+    /// Reverse lookup table: UCNet address -> list of mappings
+    reverse_lookup: HashMap<UcNetAddress, Vec<usize>>,
 }
 
 impl ParameterMapper {
@@ -30,12 +36,25 @@ impl ParameterMapper {
     pub fn new() -> Self {
         Self {
             mappings: Vec::new(),
-            msb_cache: std::collections::HashMap::new(),
+            msb_cache: HashMap::new(),
+            reverse_lookup: HashMap::new(),
         }
     }
 
     /// Adds a parameter mapping
     pub fn add_mapping(&mut self, mapping: ParameterMapping) {
+        let index = self.mappings.len();
+        let key = (
+            mapping.ucnet_device_id.clone(),
+            mapping.ucnet_channel,
+            mapping.parameter_type,
+        );
+        
+        self.reverse_lookup
+            .entry(key)
+            .or_insert_with(Vec::new)
+            .push(index);
+        
         self.mappings.push(mapping);
     }
 
@@ -46,12 +65,31 @@ impl ParameterMapper {
               && m.midi_controller == midi_controller 
               && m.midi_note == midi_note)
         });
+        // Rebuild reverse lookup table
+        self.rebuild_reverse_lookup();
     }
 
     /// Clears all mappings
     pub fn clear_mappings(&mut self) {
         self.mappings.clear();
         self.msb_cache.clear();
+        self.reverse_lookup.clear();
+    }
+    
+    /// Rebuilds the reverse lookup table from current mappings
+    fn rebuild_reverse_lookup(&mut self) {
+        self.reverse_lookup.clear();
+        for (index, mapping) in self.mappings.iter().enumerate() {
+            let key = (
+                mapping.ucnet_device_id.clone(),
+                mapping.ucnet_channel,
+                mapping.parameter_type,
+            );
+            self.reverse_lookup
+                .entry(key)
+                .or_insert_with(Vec::new)
+                .push(index);
+        }
     }
 
     /// Gets all current mappings
@@ -161,6 +199,131 @@ impl ParameterMapper {
             }
             UcNetParameterType::Mute => None, // Mute is handled by Note messages
         }
+    }
+
+    /// Translates a UCNet parameter change to MIDI messages (reverse mapping)
+    ///
+    /// Returns a vector of MIDI messages to send to controllers (may be empty if no mappings match)
+    ///
+    /// # Arguments
+    /// * `device_id` - UCNet device ID
+    /// * `channel` - UCNet channel number
+    /// * `parameter_type` - Parameter type
+    /// * `value` - UCNet parameter value
+    pub fn reverse_translate(
+        &self,
+        device_id: &str,
+        channel: u32,
+        parameter_type: UcNetParameterType,
+        value: UcNetParameterValue,
+    ) -> Vec<MidiMessageType> {
+        let key = (device_id.to_string(), channel, parameter_type);
+        
+        // Look up mappings for this UCNet address
+        let Some(mapping_indices) = self.reverse_lookup.get(&key) else {
+            return Vec::new();
+        };
+        
+        let mut messages = Vec::new();
+        
+        for &index in mapping_indices {
+            if let Some(mapping) = self.mappings.get(index) {
+                match parameter_type {
+                    UcNetParameterType::Volume => {
+                        if let UcNetParameterValue::Float(ucnet_value) = value {
+                            // Reverse the taper curve to get normalized MIDI value
+                            let normalized = reverse_taper(ucnet_value, mapping.taper_curve);
+                            
+                            if mapping.use_14bit {
+                                // Generate 14-bit MIDI CC messages
+                                if let (Some(msb_cc), Some(lsb_cc)) = 
+                                    (mapping.midi_controller_msb, mapping.midi_controller_lsb) {
+                                    let (msb, lsb) = normalized_to_midi_14bit(normalized);
+                                    
+                                    // Send MSB
+                                    messages.push(MidiMessageType::ControlChange {
+                                        channel: mapping.midi_channel,
+                                        controller: msb_cc,
+                                        value: msb,
+                                    });
+                                    
+                                    // Send LSB
+                                    messages.push(MidiMessageType::ControlChange {
+                                        channel: mapping.midi_channel,
+                                        controller: lsb_cc,
+                                        value: lsb,
+                                    });
+                                }
+                            } else if let Some(controller) = mapping.midi_controller {
+                                // Generate 7-bit MIDI CC message
+                                let midi_value = normalized_to_midi_7bit(normalized);
+                                messages.push(MidiMessageType::ControlChange {
+                                    channel: mapping.midi_channel,
+                                    controller,
+                                    value: midi_value,
+                                });
+                            }
+                        }
+                    }
+                    UcNetParameterType::Pan => {
+                        if let UcNetParameterValue::Float(pan_value) = value {
+                            // Pan is -1.0 to 1.0, convert to 0.0-1.0
+                            let normalized = (pan_value + 1.0) / 2.0;
+                            
+                            if mapping.use_14bit {
+                                // Generate 14-bit MIDI CC messages
+                                if let (Some(msb_cc), Some(lsb_cc)) = 
+                                    (mapping.midi_controller_msb, mapping.midi_controller_lsb) {
+                                    let (msb, lsb) = normalized_to_midi_14bit(normalized);
+                                    
+                                    messages.push(MidiMessageType::ControlChange {
+                                        channel: mapping.midi_channel,
+                                        controller: msb_cc,
+                                        value: msb,
+                                    });
+                                    
+                                    messages.push(MidiMessageType::ControlChange {
+                                        channel: mapping.midi_channel,
+                                        controller: lsb_cc,
+                                        value: lsb,
+                                    });
+                                }
+                            } else if let Some(controller) = mapping.midi_controller {
+                                // Generate 7-bit MIDI CC message
+                                let midi_value = normalized_to_midi_7bit(normalized);
+                                messages.push(MidiMessageType::ControlChange {
+                                    channel: mapping.midi_channel,
+                                    controller,
+                                    value: midi_value,
+                                });
+                            }
+                        }
+                    }
+                    UcNetParameterType::Mute => {
+                        if let UcNetParameterValue::Bool(is_muted) = value {
+                            if let Some(note) = mapping.midi_note {
+                                // Generate Note On/Off message
+                                if is_muted {
+                                    messages.push(MidiMessageType::NoteOn {
+                                        channel: mapping.midi_channel,
+                                        note,
+                                        velocity: 127,
+                                    });
+                                } else {
+                                    messages.push(MidiMessageType::NoteOff {
+                                        channel: mapping.midi_channel,
+                                        note,
+                                        velocity: 0,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        messages
     }
 }
 
@@ -429,5 +592,232 @@ mod tests {
 
         let results = mapper.translate(message);
         assert_eq!(results.len(), 0);
+    }
+
+    #[test]
+    fn test_reverse_translate_volume() {
+        let mut mapper = ParameterMapper::new();
+        
+        mapper.add_mapping(ParameterMapping::new_volume(
+            0, 7, "device-1".to_string(), 1, TaperCurve::Linear,
+        ));
+
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Volume,
+            UcNetParameterValue::Float(0.5),
+        );
+
+        assert_eq!(messages.len(), 1);
+        match messages[0] {
+            MidiMessageType::ControlChange { channel, controller, value } => {
+                assert_eq!(channel, 0);
+                assert_eq!(controller, 7);
+                assert_eq!(value, 64); // 0.5 * 127 ≈ 64
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
+    }
+
+    #[test]
+    fn test_reverse_translate_volume_with_audio_taper() {
+        let mut mapper = ParameterMapper::new();
+        
+        mapper.add_mapping(ParameterMapping::new_volume(
+            0, 7, "device-1".to_string(), 1, TaperCurve::AudioTaper,
+        ));
+
+        // UCNet value 0.177 should reverse to ~0.5 normalized, which is ~64 MIDI
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Volume,
+            UcNetParameterValue::Float(0.177),
+        );
+
+        assert_eq!(messages.len(), 1);
+        match messages[0] {
+            MidiMessageType::ControlChange { value, .. } => {
+                // Should be close to 64 (0.5 * 127)
+                assert!((value as i16 - 64).abs() <= 2);
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
+    }
+
+    #[test]
+    fn test_reverse_translate_pan() {
+        let mut mapper = ParameterMapper::new();
+        
+        mapper.add_mapping(ParameterMapping::new_pan(
+            0, 10, "device-1".to_string(), 1,
+        ));
+
+        // Test center pan (0.0)
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Pan,
+            UcNetParameterValue::Float(0.0),
+        );
+
+        assert_eq!(messages.len(), 1);
+        match messages[0] {
+            MidiMessageType::ControlChange { channel, controller, value } => {
+                assert_eq!(channel, 0);
+                assert_eq!(controller, 10);
+                assert!((value as i16 - 64).abs() <= 1); // Should be near center
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
+
+        // Test full left (-1.0)
+        let messages_left = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Pan,
+            UcNetParameterValue::Float(-1.0),
+        );
+        match messages_left[0] {
+            MidiMessageType::ControlChange { value, .. } => {
+                assert_eq!(value, 0);
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
+
+        // Test full right (1.0)
+        let messages_right = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Pan,
+            UcNetParameterValue::Float(1.0),
+        );
+        match messages_right[0] {
+            MidiMessageType::ControlChange { value, .. } => {
+                assert_eq!(value, 127);
+            }
+            _ => panic!("Expected ControlChange message"),
+        }
+    }
+
+    #[test]
+    fn test_reverse_translate_mute() {
+        let mut mapper = ParameterMapper::new();
+        
+        mapper.add_mapping(ParameterMapping::new_mute(
+            0, 60, "device-1".to_string(), 1,
+        ));
+
+        // Test mute on
+        let messages_on = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Mute,
+            UcNetParameterValue::Bool(true),
+        );
+
+        assert_eq!(messages_on.len(), 1);
+        match messages_on[0] {
+            MidiMessageType::NoteOn { channel, note, velocity } => {
+                assert_eq!(channel, 0);
+                assert_eq!(note, 60);
+                assert_eq!(velocity, 127);
+            }
+            _ => panic!("Expected NoteOn message"),
+        }
+
+        // Test mute off
+        let messages_off = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Mute,
+            UcNetParameterValue::Bool(false),
+        );
+
+        assert_eq!(messages_off.len(), 1);
+        match messages_off[0] {
+            MidiMessageType::NoteOff { channel, note, .. } => {
+                assert_eq!(channel, 0);
+                assert_eq!(note, 60);
+            }
+            _ => panic!("Expected NoteOff message"),
+        }
+    }
+
+    #[test]
+    fn test_reverse_translate_14bit() {
+        let mut mapper = ParameterMapper::new();
+        
+        mapper.add_mapping(ParameterMapping::new_volume_14bit(
+            0, 7, 39, "device-1".to_string(), 1, TaperCurve::Linear,
+        ));
+
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Volume,
+            UcNetParameterValue::Float(0.5),
+        );
+
+        // Should generate 2 messages (MSB and LSB)
+        assert_eq!(messages.len(), 2);
+        
+        // Check MSB
+        match messages[0] {
+            MidiMessageType::ControlChange { channel, controller, value } => {
+                assert_eq!(channel, 0);
+                assert_eq!(controller, 7);
+                assert_eq!(value, 64); // MSB of 0.5
+            }
+            _ => panic!("Expected ControlChange message for MSB"),
+        }
+
+        // Check LSB
+        match messages[1] {
+            MidiMessageType::ControlChange { channel, controller, value } => {
+                assert_eq!(channel, 0);
+                assert_eq!(controller, 39);
+                assert_eq!(value, 0); // LSB of 0.5
+            }
+            _ => panic!("Expected ControlChange message for LSB"),
+        }
+    }
+
+    #[test]
+    fn test_reverse_translate_no_mapping() {
+        let mapper = ParameterMapper::new();
+        
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Volume,
+            UcNetParameterValue::Float(0.5),
+        );
+
+        assert_eq!(messages.len(), 0);
+    }
+
+    #[test]
+    fn test_reverse_translate_multiple_mappings() {
+        let mut mapper = ParameterMapper::new();
+        
+        // Add two mappings for the same UCNet parameter
+        mapper.add_mapping(ParameterMapping::new_volume(
+            0, 7, "device-1".to_string(), 1, TaperCurve::Linear,
+        ));
+        mapper.add_mapping(ParameterMapping::new_volume(
+            1, 8, "device-1".to_string(), 1, TaperCurve::Linear,
+        ));
+
+        let messages = mapper.reverse_translate(
+            "device-1",
+            1,
+            UcNetParameterType::Volume,
+            UcNetParameterValue::Float(0.5),
+        );
+
+        // Should generate 2 messages (one for each mapping)
+        assert_eq!(messages.len(), 2);
     }
 }

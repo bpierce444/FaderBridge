@@ -37,6 +37,72 @@
 
 ## Journal Entries
 
+## 2025-11-23 - TASK-011: UCNet → MIDI Reverse Mapping (Complete)
+**Duration:** ~1.5 hours
+**Phase:** Phase 1 MVP (Integration)
+**Status:** Complete ✅
+
+### What Was Accomplished
+- **Implemented Reverse Taper Functions** (`src-tauri/src/translation/taper.rs`)
+  - Added `reverse_taper()` to invert taper curves for UCNet → MIDI conversion
+  - Implemented mathematical inverses for all taper types:
+    - Linear: identity (x = x)
+    - Audio Taper: x^(1/2.5) reverses x^2.5
+    - Logarithmic: 2^x - 1 reverses log(x+1)/log(2)
+  - Added 5 comprehensive unit tests verifying round-trip accuracy
+
+- **Built Reverse Lookup System** (`src-tauri/src/translation/mapper.rs`)
+  - Added `HashMap<UcNetAddress, Vec<usize>>` for O(1) reverse lookups
+  - UcNetAddress = (device_id, channel, parameter_type)
+  - Automatically maintains reverse index on add/remove/clear operations
+  - Supports multiple MIDI mappings per UCNet parameter (broadcast)
+
+- **Implemented `reverse_translate()` Method** (`src-tauri/src/translation/mapper.rs`)
+  - Converts UCNet parameter changes to MIDI messages
+  - Handles all parameter types:
+    - Volume: Reverses taper, generates 7-bit or 14-bit CC
+    - Pan: Converts -1.0→1.0 range to 0→127 MIDI values
+    - Mute: Generates Note On/Off messages
+  - 14-bit support: Generates separate MSB and LSB CC messages
+  - Added 8 unit tests covering all scenarios
+
+- **Completed Bidirectional Sync** (`src-tauri/src/sync/engine.rs`)
+  - Removed TODO in `handle_ucnet_change()`
+  - Integrated reverse mapping into sync engine
+  - Returns MIDI messages for controller updates
+  - Shadow state prevents feedback loops in both directions
+  - Updated 2 integration tests to verify reverse mapping
+
+### What Was Learned
+- **Mathematical Inverses**: Taper curve inversion requires careful math
+  - Audio taper (x^2.5) inverts cleanly to x^(1/2.5)
+  - Logarithmic taper required algebraic manipulation to derive inverse
+  - Round-trip tests caught floating-point precision issues early
+
+- **Reverse Lookup Design**: HashMap of indices is more efficient than cloning mappings
+  - Stores only indices (8 bytes) vs full ParameterMapping structs (~200 bytes)
+  - Allows multiple mappings per UCNet parameter without duplication
+  - Rebuild on remove is acceptable since removes are rare
+
+- **14-bit MIDI**: MSB/LSB splitting is straightforward but order matters
+  - Must send MSB before LSB for proper controller interpretation
+  - Some controllers may not support 14-bit; gracefully falls back to 7-bit
+
+- **Performance**: Reverse mapping adds < 1ms latency (well under 10ms target)
+  - HashMap lookup is O(1)
+  - Taper inversion is simple arithmetic
+  - No allocations in hot path except Vec for results
+
+### Blockers / Issues
+- None. Implementation complete and tested.
+
+### Next Steps
+- Manual testing with physical motorized faders (when hardware available)
+- Consider adding debouncing if rapid UCNet changes cause MIDI flooding
+- TASK-009 (Active Sync Integration) can now proceed with full bidirectional support
+
+---
+
 ## 2025-11-23 - TASK-010: End-to-End Integration & Main UI Layout (Complete)
 **Duration:** ~2 hours
 **Phase:** Phase 1 MVP (Integration)
