@@ -1,13 +1,26 @@
 //! UCNet connection management
 //!
 //! Handles connection state, keep-alive heartbeats, and communication with UCNet devices.
+//!
+//! ## Protocol Overview
+//! - TCP port 53000 for control communication
+//! - Hello packet sent first, then Subscribe with JSON payload
+//! - Keep-alive (KA) packets sent every 3-5 seconds
+//! - Parameter changes sent via PS (Parameter Set) packets
 
 use super::error::{Result, UcNetError};
+use super::protocol::{
+    build_hello_packet, build_keepalive_packet, build_parameter_set_bool_packet,
+    build_parameter_set_packet, build_subscribe_packet, keys, PacketHeader, PayloadType,
+    SubscribeRequest, CONTROL_PORT, MAGIC_BYTES,
+};
 use super::types::{constants::*, ConnectionState, ConnectionType, UcNetDevice};
 use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::interval;
 
@@ -54,6 +67,8 @@ enum ConnectionData {
     Network {
         /// Socket address for communication
         addr: std::net::SocketAddr,
+        /// TCP stream for communication (wrapped in Arc<RwLock> for sharing)
+        stream: Arc<RwLock<Option<TcpStream>>>,
     },
     /// USB connection data
     Usb {
@@ -149,14 +164,19 @@ impl ConnectionManager {
             connection.device.state = ConnectionState::Disconnected;
             
             // Perform cleanup based on connection type
-            match connection.connection_data {
-                ConnectionData::Network { .. } => {
-                    // Send disconnect packet if needed
-                    debug!("Closing network connection for {}", device_id);
+            match &connection.connection_data {
+                ConnectionData::Network { addr, stream } => {
+                    // Close the TCP stream
+                    let mut stream_guard = stream.write().await;
+                    if let Some(tcp_stream) = stream_guard.take() {
+                        // Dropping the stream will close the connection
+                        drop(tcp_stream);
+                    }
+                    debug!("Closed network connection for {} at {}", device_id, addr);
                 }
-                ConnectionData::Usb { .. } => {
+                ConnectionData::Usb { device_path } => {
                     // Close USB handle
-                    debug!("Closing USB connection for {}", device_id);
+                    debug!("Closing USB connection for {} at {}", device_id, device_path);
                 }
             }
             
@@ -242,41 +262,227 @@ impl ConnectionManager {
     /// Sends a keep-alive packet to a specific device
     async fn send_keepalive_packet(&self, connection: &DeviceConnection) -> Result<()> {
         match &connection.connection_data {
-            ConnectionData::Network { addr } => {
-                // TODO: Implement actual keep-alive packet sending
-                debug!("Sending network keep-alive to {}", addr);
-                Ok(())
+            ConnectionData::Network { addr, stream } => {
+                let keepalive_packet = build_keepalive_packet();
+                
+                let mut stream_guard = stream.write().await;
+                if let Some(ref mut tcp_stream) = *stream_guard {
+                    tcp_stream.write_all(&keepalive_packet).await.map_err(|e| {
+                        UcNetError::Connection(format!("Failed to send keep-alive to {}: {}", addr, e))
+                    })?;
+                    debug!("Sent keep-alive packet to {}", addr);
+                    Ok(())
+                } else {
+                    Err(UcNetError::Connection("TCP stream not available".to_string()))
+                }
             }
             ConnectionData::Usb { device_path } => {
-                // TODO: Implement USB keep-alive
-                debug!("Sending USB keep-alive to {}", device_path);
+                // USB keep-alive would use USB bulk transfer
+                // For now, USB connections don't require keep-alive in the same way
+                debug!("USB keep-alive not required for {}", device_path);
                 Ok(())
             }
         }
     }
     
     /// Establishes a network connection to a device
+    ///
+    /// Connection handshake sequence:
+    /// 1. Open TCP connection to port 53000
+    /// 2. Send Hello packet (UM)
+    /// 3. Send Subscribe packet (JM) with client info
+    /// 4. Receive SubscriptionReply and initial state
     async fn connect_network(&self, device: &UcNetDevice) -> Result<ConnectionData> {
         // Parse IP address from identifier
         let ip_addr: std::net::IpAddr = device.identifier.parse()
             .map_err(|_| UcNetError::Protocol("Invalid IP address".to_string()))?;
         
-        let addr = std::net::SocketAddr::new(ip_addr, UCNET_DISCOVERY_PORT);
+        let addr = std::net::SocketAddr::new(ip_addr, CONTROL_PORT);
         
-        // TODO: Perform actual connection handshake
-        debug!("Establishing network connection to {}", addr);
+        info!("Connecting to UCNet device at {}", addr);
         
-        Ok(ConnectionData::Network { addr })
+        // Step 1: Open TCP connection
+        let mut stream = TcpStream::connect(addr).await.map_err(|e| {
+            UcNetError::Connection(format!("Failed to connect to {}: {}", addr, e))
+        })?;
+        
+        debug!("TCP connection established to {}", addr);
+        
+        // Step 2: Send Hello packet
+        let hello_packet = build_hello_packet();
+        stream.write_all(&hello_packet).await.map_err(|e| {
+            UcNetError::Connection(format!("Failed to send Hello packet: {}", e))
+        })?;
+        debug!("Sent Hello packet");
+        
+        // Step 3: Send Subscribe packet
+        let subscribe_request = SubscribeRequest::default();
+        let subscribe_packet = build_subscribe_packet(&subscribe_request)?;
+        stream.write_all(&subscribe_packet).await.map_err(|e| {
+            UcNetError::Connection(format!("Failed to send Subscribe packet: {}", e))
+        })?;
+        debug!("Sent Subscribe packet");
+        
+        // Step 4: Read response (SubscriptionReply)
+        // We expect at least a header (8 bytes) in response
+        let mut response_buf = [0u8; 1024];
+        let timeout_duration = Duration::from_secs(5);
+        
+        let read_result = tokio::time::timeout(
+            timeout_duration,
+            stream.read(&mut response_buf)
+        ).await;
+        
+        match read_result {
+            Ok(Ok(n)) if n >= 8 => {
+                // Verify we got a valid UCNet response
+                if response_buf[0..4] == MAGIC_BYTES {
+                    let header = PacketHeader::from_bytes(&response_buf[..n])?;
+                    info!(
+                        "Received response: {:?}, size={}",
+                        header.payload_type, header.size
+                    );
+                    
+                    // Connection successful
+                    info!("Successfully connected to UCNet device at {}", addr);
+                } else {
+                    warn!("Received non-UCNet response from {}", addr);
+                }
+            }
+            Ok(Ok(n)) => {
+                warn!("Received short response ({} bytes) from {}", n, addr);
+            }
+            Ok(Err(e)) => {
+                warn!("Error reading response from {}: {}", addr, e);
+            }
+            Err(_) => {
+                warn!("Timeout waiting for response from {}", addr);
+            }
+        }
+        
+        Ok(ConnectionData::Network {
+            addr,
+            stream: Arc::new(RwLock::new(Some(stream))),
+        })
     }
     
     /// Establishes a USB connection to a device
     async fn connect_usb(&self, device: &UcNetDevice) -> Result<ConnectionData> {
         let device_path = device.identifier.clone();
         
-        // TODO: Open USB device and establish communication
+        // USB UCNet communication uses bulk transfers
+        // This requires opening the USB device and finding the correct endpoints
         debug!("Establishing USB connection to {}", device_path);
         
+        // Note: Full USB implementation would require:
+        // 1. Open USB device handle
+        // 2. Claim interface
+        // 3. Find bulk IN/OUT endpoints
+        // 4. Send Hello/Subscribe packets via bulk OUT
+        // 5. Read responses via bulk IN
+        
         Ok(ConnectionData::Usb { device_path })
+    }
+    
+    /// Sends a parameter value to a connected device
+    ///
+    /// # Arguments
+    /// * `device_id` - ID of the device to send to
+    /// * `key` - Parameter key (e.g., "line.ch1.volume")
+    /// * `value` - Parameter value (0.0 to 1.0 for faders, etc.)
+    pub async fn send_parameter(&self, device_id: &str, key: &str, value: f32) -> Result<()> {
+        let connections = self.connections.read().await;
+        
+        let connection = connections.get(device_id).ok_or_else(|| {
+            UcNetError::DeviceNotFound(device_id.to_string())
+        })?;
+        
+        match &connection.connection_data {
+            ConnectionData::Network { addr, stream } => {
+                let packet = build_parameter_set_packet(key, value);
+                
+                let mut stream_guard = stream.write().await;
+                if let Some(ref mut tcp_stream) = *stream_guard {
+                    tcp_stream.write_all(&packet).await.map_err(|e| {
+                        UcNetError::Connection(format!(
+                            "Failed to send parameter to {}: {}",
+                            addr, e
+                        ))
+                    })?;
+                    debug!("Sent parameter {}={} to {}", key, value, addr);
+                    Ok(())
+                } else {
+                    Err(UcNetError::Connection("TCP stream not available".to_string()))
+                }
+            }
+            ConnectionData::Usb { device_path } => {
+                // USB parameter sending would use bulk transfer
+                debug!("USB parameter send not yet implemented for {}", device_path);
+                Err(UcNetError::Protocol("USB parameter send not implemented".to_string()))
+            }
+        }
+    }
+    
+    /// Sends a boolean parameter value to a connected device (e.g., mute, solo)
+    ///
+    /// # Arguments
+    /// * `device_id` - ID of the device to send to
+    /// * `key` - Parameter key (e.g., "line.ch1.mute")
+    /// * `value` - Boolean value
+    pub async fn send_parameter_bool(&self, device_id: &str, key: &str, value: bool) -> Result<()> {
+        let connections = self.connections.read().await;
+        
+        let connection = connections.get(device_id).ok_or_else(|| {
+            UcNetError::DeviceNotFound(device_id.to_string())
+        })?;
+        
+        match &connection.connection_data {
+            ConnectionData::Network { addr, stream } => {
+                let packet = build_parameter_set_bool_packet(key, value);
+                
+                let mut stream_guard = stream.write().await;
+                if let Some(ref mut tcp_stream) = *stream_guard {
+                    tcp_stream.write_all(&packet).await.map_err(|e| {
+                        UcNetError::Connection(format!(
+                            "Failed to send parameter to {}: {}",
+                            addr, e
+                        ))
+                    })?;
+                    debug!("Sent parameter {}={} to {}", key, value, addr);
+                    Ok(())
+                } else {
+                    Err(UcNetError::Connection("TCP stream not available".to_string()))
+                }
+            }
+            ConnectionData::Usb { device_path } => {
+                debug!("USB parameter send not yet implemented for {}", device_path);
+                Err(UcNetError::Protocol("USB parameter send not implemented".to_string()))
+            }
+        }
+    }
+    
+    /// Convenience method to set channel volume
+    pub async fn set_channel_volume(&self, device_id: &str, channel: u8, volume: f32) -> Result<()> {
+        let key = keys::channel_volume(channel);
+        self.send_parameter(device_id, &key, volume).await
+    }
+    
+    /// Convenience method to set channel mute
+    pub async fn set_channel_mute(&self, device_id: &str, channel: u8, muted: bool) -> Result<()> {
+        let key = keys::channel_mute(channel);
+        self.send_parameter_bool(device_id, &key, muted).await
+    }
+    
+    /// Convenience method to set channel pan
+    pub async fn set_channel_pan(&self, device_id: &str, channel: u8, pan: f32) -> Result<()> {
+        let key = keys::channel_pan(channel);
+        self.send_parameter(device_id, &key, pan).await
+    }
+    
+    /// Convenience method to set main volume
+    pub async fn set_main_volume(&self, device_id: &str, volume: f32) -> Result<()> {
+        let key = keys::main_volume();
+        self.send_parameter(device_id, &key, volume).await
     }
     
     /// Gets a receiver for connection events

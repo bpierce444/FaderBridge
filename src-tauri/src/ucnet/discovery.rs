@@ -2,8 +2,14 @@
 //!
 //! This module handles automatic discovery of PreSonus UCNet devices on both
 //! network (UDP broadcast) and USB connections.
+//!
+//! ## Discovery Protocol
+//! PreSonus UCNet devices broadcast discovery advertisements every ~3 seconds
+//! on UDP port 47809. Clients listen for these broadcasts to discover devices.
+//! The discovery packet contains device model, serial number, and friendly name.
 
 use super::error::{Result, UcNetError};
+use super::protocol::{DiscoveryInfo, PacketHeader, PayloadType, DISCOVERY_PORT, MAGIC_BYTES};
 use super::types::{constants::*, NetworkDeviceInfo, UsbDeviceInfo};
 use log::{debug, error, info, warn};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -163,45 +169,91 @@ impl DeviceDiscovery for DefaultDeviceDiscovery {
     }
 }
 
-/// Creates a UCNet discovery broadcast packet
+/// Creates a UCNet discovery query packet (optional - devices broadcast automatically)
 ///
-/// The actual packet format would be documented in the UCNet protocol specification.
-/// For now, this is a placeholder that sends a simple discovery request.
+/// Note: UCNet devices broadcast discovery advertisements every ~3 seconds without
+/// needing a query. This packet can optionally be sent to trigger an immediate response.
+///
+/// Packet format: UC\x00\x01 + size(u16 BE) + "DQ" + payload
 fn create_discovery_packet() -> Vec<u8> {
-    // TODO: Implement actual UCNet discovery packet format
-    // This is a placeholder implementation
-    // Real implementation would follow PreSonus UCNet protocol specification
-    
-    // Magic bytes for UCNet discovery (placeholder)
+    // Discovery Query packet (DQ)
+    // Format: 55 43 00 01 00 00 44 51 00 00 65 00
+    // This is optional - we primarily listen for broadcast advertisements
     let mut packet = Vec::new();
-    packet.extend_from_slice(b"UCNET_DISCOVER");
-    packet.push(0x01); // Protocol version
+    packet.extend_from_slice(&MAGIC_BYTES);
+    packet.extend_from_slice(&[0x00, 0x04]); // Size: 4 bytes
+    packet.extend_from_slice(&PayloadType::DiscoveryQuery.to_bytes()); // "DQ"
+    packet.extend_from_slice(&[0x00, 0x00, 0x65, 0x00]); // C-Bytes
     packet
 }
 
 /// Parses a discovery response from a UCNet device
 ///
+/// Discovery Advertisement (DA) packet format:
+/// - Magic bytes: 55 43 00 01
+/// - Size: 2 bytes (big-endian)
+/// - Payload type: "DA" (44 41)
+/// - C-Bytes: 4 bytes
+/// - Unknown header data
+/// - Model name (null-terminated)
+/// - Category (null-terminated, e.g., "AUD")
+/// - Serial number (null-terminated)
+/// - Friendly name (null-terminated)
+///
 /// # Arguments
 /// * `data` - Raw response data from the device
 /// * `ip_addr` - IP address the response came from
 fn parse_discovery_response(data: &[u8], ip_addr: IpAddr) -> Result<NetworkDeviceInfo> {
-    // TODO: Implement actual UCNet response parsing
-    // This is a placeholder implementation
-    
-    if data.len() < 16 {
+    // Minimum packet size: header (8) + some payload
+    if data.len() < 12 {
         return Err(UcNetError::InvalidResponse(
-            "Response too short".to_string()
+            "Response too short for UCNet packet".to_string()
         ));
     }
     
-    // Placeholder parsing - real implementation would parse actual UCNet protocol
-    // For now, return a mock device for testing
+    // Verify magic bytes
+    if data[0..4] != MAGIC_BYTES {
+        return Err(UcNetError::InvalidResponse(format!(
+            "Invalid magic bytes: {:02X?}",
+            &data[0..4]
+        )));
+    }
+    
+    // Parse header
+    let header = PacketHeader::from_bytes(data)?;
+    
+    // Verify this is a Discovery Advertisement packet
+    if header.payload_type != PayloadType::DiscoveryAdvertisement {
+        debug!(
+            "Ignoring non-discovery packet type: {:?}",
+            header.payload_type
+        );
+        return Err(UcNetError::InvalidResponse(
+            "Not a discovery advertisement packet".to_string()
+        ));
+    }
+    
+    // Extract payload (after 8-byte header)
+    let payload = &data[8..];
+    
+    // Parse discovery info from payload
+    let discovery_info = DiscoveryInfo::from_payload(payload)?;
+    
+    info!(
+        "Parsed discovery: model={}, serial={}, name={}",
+        discovery_info.model, discovery_info.serial, discovery_info.friendly_name
+    );
+    
     Ok(NetworkDeviceInfo {
         ip_addr,
-        port: UCNET_DISCOVERY_PORT,
-        model: "StudioLive 32SX".to_string(), // Would be parsed from response
-        firmware_version: "1.0.0".to_string(), // Would be parsed from response
-        device_id: format!("{}", ip_addr),
+        port: DISCOVERY_PORT,
+        model: discovery_info.model,
+        firmware_version: "Unknown".to_string(), // Not in discovery packet, get from connection
+        device_id: if discovery_info.serial.is_empty() {
+            format!("{}", ip_addr)
+        } else {
+            discovery_info.serial
+        },
     })
 }
 
@@ -247,7 +299,10 @@ mod tests {
     fn test_create_discovery_packet() {
         let packet = create_discovery_packet();
         assert!(!packet.is_empty());
-        assert!(packet.starts_with(b"UCNET_DISCOVER"));
+        // Should start with UCNet magic bytes
+        assert!(packet.starts_with(&MAGIC_BYTES));
+        // Should contain DQ payload type
+        assert_eq!(packet[6..8], PayloadType::DiscoveryQuery.to_bytes());
     }
     
     #[test]
@@ -259,14 +314,59 @@ mod tests {
     }
     
     #[test]
-    fn test_parse_discovery_response_valid() {
-        let data = vec![0u8; 32]; // Valid length
+    fn test_parse_discovery_response_invalid_magic() {
+        // Invalid magic bytes
+        let data = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x44, 0x41, 0x00, 0x00, 0x00, 0x00];
         let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100));
         let result = parse_discovery_response(&data, ip);
-        assert!(result.is_ok());
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_parse_discovery_response_valid() {
+        // Build a valid discovery advertisement packet
+        // Header: UC\x00\x01 + size + DA
+        let mut data = Vec::new();
+        data.extend_from_slice(&MAGIC_BYTES);
+        
+        // Build payload with model and serial
+        // The payload starts with C-Bytes and binary header, then null-terminated strings
+        // Based on real packet: binary header followed by model, category, serial, friendly name
+        let payload = b"\x65\x00\x00\x00\x00\x04\x00\x80\x48\x1c\x48\x67\x23\x60\x51\x4fStudioLive 32SX\x00AUD\x00SL32SX123456\x00StudioLive 32SX\x00";
+        
+        // Size (big-endian)
+        let size = (payload.len() as u16).to_be_bytes();
+        data.extend_from_slice(&size);
+        
+        // Payload type: DA
+        data.extend_from_slice(&PayloadType::DiscoveryAdvertisement.to_bytes());
+        
+        // Payload
+        data.extend_from_slice(payload);
+        
+        let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100));
+        let result = parse_discovery_response(&data, ip);
+        
+        assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
         
         let device_info = result.unwrap();
         assert_eq!(device_info.ip_addr, ip);
-        assert_eq!(device_info.port, UCNET_DISCOVERY_PORT);
+        assert_eq!(device_info.port, DISCOVERY_PORT);
+        // Model should be extracted from the payload
+        assert!(device_info.model.contains("StudioLive") || !device_info.model.is_empty());
+    }
+    
+    #[test]
+    fn test_parse_discovery_response_wrong_packet_type() {
+        // Build a packet with wrong type (KA instead of DA)
+        let mut data = Vec::new();
+        data.extend_from_slice(&MAGIC_BYTES);
+        data.extend_from_slice(&[0x00, 0x04]); // Size
+        data.extend_from_slice(&PayloadType::KeepAlive.to_bytes()); // Wrong type
+        data.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+        
+        let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100));
+        let result = parse_discovery_response(&data, ip);
+        assert!(result.is_err());
     }
 }

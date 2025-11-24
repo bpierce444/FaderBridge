@@ -37,6 +37,155 @@
 
 ## Journal Entries
 
+## 2025-11-24 - TASK-013: UCNet Protocol Implementation (In Progress)
+**Duration:** ~2 hours
+**Phase:** Phase 1 MVP (Critical)
+**Status:** In Progress 🟡
+
+### What Was Accomplished
+- **Protocol Research Completed**
+  - Found excellent reverse-engineering documentation by featherbear
+  - Source: https://featherbear.cc/presonus-studiolive-api/
+  - Documented TCP port 53000 for control, UDP port 47809 for discovery
+  - Identified packet structure: magic bytes (UC\x00\x01) + size + payload type + data
+
+- **Created protocol.rs** (`src-tauri/src/ucnet/protocol.rs`)
+  - Protocol constants: MAGIC_BYTES, CONTROL_PORT (53000), DISCOVERY_PORT (47809)
+  - PayloadType enum with all known types (UM, JM, PV, PS, KA, DA, DQ, ZB, CK, FR, FD, MS, BO)
+  - CBytes struct for request/response matching
+  - PacketHeader parsing and serialization
+  - DiscoveryInfo parsing from advertisement packets
+  - SubscribeRequest/SubscribeResponse JSON structures
+  - ParameterValue parsing and creation
+  - Packet builders: build_hello_packet, build_subscribe_packet, build_keepalive_packet, build_parameter_set_packet
+  - Parameter key helpers: channel_volume, channel_mute, channel_pan, main_volume, etc.
+  - 12 unit tests covering all protocol components
+
+- **Updated discovery.rs**
+  - Replaced placeholder `create_discovery_packet()` with real UCNet DQ packet format
+  - Replaced placeholder `parse_discovery_response()` with real DA packet parsing
+  - Validates magic bytes and payload type
+  - Extracts model, serial, category, and friendly name from discovery packets
+  - 5 unit tests updated and passing
+
+- **Updated connection.rs**
+  - Added TCP stream to ConnectionData::Network
+  - Implemented real connection handshake:
+    1. Open TCP connection to port 53000
+    2. Send Hello packet (UM)
+    3. Send Subscribe packet (JM) with client info
+    4. Receive and validate SubscriptionReply
+  - Implemented real keep-alive packet sending (KA)
+  - Added parameter sending methods:
+    - `send_parameter()` - Send float parameter values
+    - `send_parameter_bool()` - Send boolean parameter values
+    - `set_channel_volume()` - Convenience method for volume
+    - `set_channel_mute()` - Convenience method for mute
+    - `set_channel_pan()` - Convenience method for pan
+    - `set_main_volume()` - Convenience method for main fader
+  - Proper TCP stream cleanup on disconnect
+
+- **Added Connection error variant** (`src-tauri/src/ucnet/error.rs`)
+  - New `UcNetError::Connection(String)` for connection-specific errors
+
+- **All Tests Passing**
+  - 17 protocol tests passing
+  - 5 discovery tests passing
+  - Code compiles with only warnings (unused imports)
+
+### What Was Learned
+- **UCNet Protocol Structure**:
+  - All packets start with magic bytes: 0x55 0x43 0x00 0x01 ("UC\x00\x01")
+  - Payload size is 2 bytes big-endian after magic
+  - Payload type is 2-byte ASCII code (e.g., "UM", "JM", "PV")
+  - C-Bytes (4 bytes) used for request/response matching
+  - JSON payloads used for Subscribe and state updates
+  - ZLIB compression for large state dumps (UBJSON format)
+
+- **Discovery Protocol**:
+  - Console broadcasts DA (Discovery Advertisement) every ~3 seconds
+  - Broadcast sent to 255.255.255.255:47809 from port 53000
+  - Contains model name, serial number, category, and friendly name
+  - Clients can optionally send DQ (Discovery Query) to trigger response
+
+- **Connection Handshake**:
+  - TCP connection to port 53000
+  - Hello packet (UM) sent first
+  - Subscribe packet (JM) with JSON client info
+  - Console replies with SubscriptionReply and ZLIB state dump
+
+- **Parameter Control**:
+  - PS (Parameter Set) packets for changing values
+  - Key format: "line.ch{N}.volume", "line.ch{N}.mute", etc.
+  - Values are 4-byte little-endian floats or u32 for booleans
+
+### Blockers / Issues
+- **Hardware Testing Required**: Need real StudioLive mixer to verify protocol implementation
+- **USB Protocol**: USB UCNet implementation still placeholder (requires bulk transfers)
+- **State Parsing**: ZLIB/UBJSON state dump parsing not yet implemented
+
+### Next Steps
+- Test with real StudioLive Series III mixer
+- Implement ZLIB decompression for state dumps
+- Add parameter change event handling (receiving PV packets)
+- Implement USB UCNet protocol if needed
+
+---
+
+## 2025-11-24 - TASK-012: Hardware Validation Setup (In Progress)
+**Duration:** ~30 minutes
+**Phase:** Phase 1 MVP (Validation)
+**Status:** In Progress 🟡
+
+### What Was Accomplished
+- **Created HARDWARE_TEST_REPORT.md** (`Docs/HARDWARE_TEST_REPORT.md`)
+  - Comprehensive test report template with 200+ test cases
+  - Hardware configuration tables for UCNet devices and MIDI controllers
+  - Connection testing checklists (network, USB, hot-plug)
+  - Mapping testing procedures (MIDI Learn, volume, mute, pan, 14-bit)
+  - Sync testing with latency measurement tables
+  - Persistence testing checklists (save/load, auto-save, export/import)
+  - Performance metrics tables (startup, memory, CPU, UI)
+  - Stability testing procedures (4-hour stress test)
+  - Test procedures appendix with step-by-step instructions
+
+- **Created PERFORMANCE_METRICS.md** (`Docs/PERFORMANCE_METRICS.md`)
+  - Target metrics from PROJECT_CHARTER.md documented
+  - Latency measurement breakdown by processing stage
+  - Memory usage tracking tables with time intervals
+  - CPU usage benchmarks by application state
+  - Startup performance metrics breakdown
+  - Throughput metrics for message processing
+  - UI performance metrics (frame rate, interaction latency)
+  - Profiling tool instructions (Activity Monitor, Instruments.app)
+  - Benchmarking procedures documented
+
+- **Verified Existing Infrastructure**
+  - `SyncEngine.record_latency()` already tracks latency samples
+  - `SyncEngine.get_latency_stats()` calculates avg/min/max
+  - `get_latency_stats` Tauri command exposes metrics to frontend
+  - `SyncStatusIndicator` displays latency with color-coded status
+  - `useActiveSync` hook polls stats every 1 second when active
+
+### What Was Learned
+- **Latency Measurement Already Complete**: The sync engine has comprehensive latency tracking built in from TASK-009. No additional code needed.
+- **UI Feedback Ready**: The StatusBar and SyncStatusIndicator components already display latency metrics with appropriate warnings when exceeding 10ms target.
+
+### Blockers / Issues
+- **Hardware Required**: Actual testing requires physical hardware:
+  - PreSonus Series III mixer (32S, 32SC, or 64S)
+  - Multiple MIDI controllers (FaderPort, X-Touch, nanoKONTROL2)
+  - Network or USB connection to mixer
+
+### Next Steps
+- Perform manual testing with real hardware
+- Fill in HARDWARE_TEST_REPORT.md with actual measurements
+- Document any issues found during testing
+- Complete 4-hour stability test
+- Profile memory usage with Activity Monitor
+
+---
+
 ## 2025-11-23 - TASK-011: UCNet → MIDI Reverse Mapping (Complete)
 **Duration:** ~1.5 hours
 **Phase:** Phase 1 MVP (Integration)

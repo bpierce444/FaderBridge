@@ -33,6 +33,10 @@ pub enum UcNetError {
     #[error("Connection lost: {0}")]
     ConnectionLost(String),
 
+    /// Connection error (failed to establish or maintain connection)
+    #[error("Connection error: {0}")]
+    Connection(String),
+
     /// Protocol error
     #[error("Protocol error: {0}")]
     Protocol(String),
