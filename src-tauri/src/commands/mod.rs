@@ -4,6 +4,7 @@ pub mod learn;
 pub mod midi;
 pub mod projects;
 pub mod sync;
+pub mod sync_integration;
 pub mod ucnet;
 
 // Re-export state types

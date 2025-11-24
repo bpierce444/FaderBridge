@@ -107,6 +107,11 @@ fn main() {
             commands::projects::get_mappings_by_project,
             commands::projects::update_mapping,
             commands::projects::delete_mapping,
+            // Sync integration commands
+            commands::sync_integration::start_sync_integration,
+            commands::sync_integration::stop_sync_integration,
+            commands::sync_integration::trigger_midi_sync,
+            commands::sync_integration::get_sync_status,
             // Export/Import commands
             commands::projects::export_project,
             commands::projects::export_project_to_file,

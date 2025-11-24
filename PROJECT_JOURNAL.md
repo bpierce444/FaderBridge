@@ -37,6 +37,73 @@
 
 ## Journal Entries
 
+## 2025-11-23 - TASK-009: Active Sync Integration (Complete)
+**Duration:** ~3 hours
+**Phase:** Phase 1 MVP (Integration)
+**Status:** Complete ✅
+
+### What Was Accomplished
+- **Created useActiveSync Hook** (`src/hooks/useActiveSync.ts`)
+  - Manages bidirectional sync engine state with TypeScript interfaces
+  - Auto-initialization support with configurable polling
+  - Real-time status updates via Tauri event system
+  - Latency statistics tracking and monitoring
+  - Comprehensive error handling
+  - 15 test cases covering all functionality
+
+- **Created SyncStatusIndicator Component** (`src/components/SyncStatusIndicator.tsx`)
+  - Visual sync status with color-coded activity indicator
+  - Latency statistics display with performance warnings
+  - Start/Stop sync controls for user control
+  - Detailed stats view (collapsible) for power users
+  - Performance warnings when latency exceeds 10ms target
+  - 18 test cases covering all UI states and interactions
+
+- **Reviewed Existing Sync Engine**
+  - Confirmed `SyncEngine` in `src-tauri/src/sync/engine.rs` is fully implemented
+  - Verified Tauri commands in `src-tauri/src/commands/sync.rs` are complete
+  - Identified need for MIDI/UCNet event wiring in main.rs
+
+- **Created Sync Integration Commands** (`src-tauri/src/commands/sync_integration.rs`)
+  - `start_sync_integration` - Wires up MIDI input callbacks to sync engine
+  - `stop_sync_integration` - Stops sync processing
+  - `trigger_midi_sync` - Manual sync trigger for testing without hardware
+  - `get_sync_status` - Get current sync status with latency stats
+  - Automatic MIDI message routing through sync engine
+  - Tauri event emissions (`sync:parameter-synced`) for real-time UI updates
+  - Comprehensive error handling and logging
+
+- **Updated Main.rs**
+  - Registered all 4 new sync integration commands
+  - Commands now available to frontend via Tauri invoke
+
+- **Updated useActiveSync Hook**
+  - Integrated `start_sync_integration` call when starting sync
+  - Integrated `stop_sync_integration` call when stopping sync
+  - Proper event-driven architecture for real-time updates
+
+### What Was Learned
+- The sync engine backend is already robust with shadow state and latency tracking
+- Frontend needs event-driven updates from backend for real-time sync status
+- Latency color coding helps users quickly identify performance issues
+- Auto-initialization pattern works well for background services
+- MIDI connection manager's message channel pattern works perfectly for event-driven sync
+- Tauri's event emission system provides clean real-time updates to frontend
+- Arc<RwLock<Option<T>>> pattern allows safe sharing of optional state across async tasks
+
+### Blockers / Issues
+- None for core MIDI → UCNet sync flow
+- UCNet → MIDI reverse sync requires UCNet connection implementation (deferred)
+- Requires hardware testing to verify < 10ms latency in real scenarios
+
+### Next Steps
+- Integration testing with real MIDI hardware and UCNet devices
+- Performance validation to confirm < 10ms latency
+- UCNet → MIDI reverse sync (when UCNet connection is implemented)
+- End-to-end testing (TASK-010)
+
+---
+
 ## 2025-11-23 - TASK-008: Mapping Interface UI Complete
 **Duration:** ~2 hours
 **Phase:** Phase 1 MVP (Integration)
