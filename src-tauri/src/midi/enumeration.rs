@@ -56,12 +56,17 @@ impl MidirEnumerator {
     }
 
     /// Check if a MIDI device should be excluded from the Controllers list
-    /// Returns true if the device is an audio interface that belongs in Mixers & Interfaces
+    /// 
+    /// Returns true if the device is NOT a control surface with physical faders/buttons.
+    /// Many audio interfaces, guitar processors, and other devices expose MIDI ports
+    /// but don't have assignable controls, so they shouldn't appear in Controllers.
+    /// 
+    /// Only devices with physical faders, knobs, or assignable buttons should be shown.
     fn should_exclude_from_controllers(&self, name: &str) -> bool {
         // Use the database to categorize the device
         let category = self.device_db.categorize_device(name, None, None);
         
-        // Exclude if it's categorized as an audio interface
+        // Exclude if it's categorized as an audio interface (no physical controls)
         matches!(category, DeviceCategory::AudioInterface)
     }
 

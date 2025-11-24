@@ -44,76 +44,111 @@
               └─────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│              INTEGRATION LAYER (NOT STARTED 🔴)             │
+│                   P0 CRITICAL GAPS (NEW 🔴)                 │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
         ▼                     ▼                     ▼
   ┌──────────┐        ┌──────────┐         ┌──────────┐
-  │TASK-008🔴│        │TASK-011🔴│         │          │
-  │ Mapping  │        │ Reverse  │         │          │
-  │Interface │        │ Mapping  │         │          │
-  └────┬─────┘        └────┬─────┘         │          │
-       │                   │                │          │
-       └─────────┬─────────┘                │          │
-                 │                          │          │
-                 ▼                          │          │
-          ┌──────────┐                     │          │
-          │TASK-009🔴│                     │          │
-          │  Active  │                     │          │
-          │   Sync   │                     │          │
-          └────┬─────┘                     │          │
-               │                           │          │
-               └────────────┬──────────────┘          │
-                            │                         │
-                            ▼                         │
-                     ┌──────────┐                     │
-                     │TASK-010🔴│                     │
-                     │End-to-End│                     │
-                     │Integration│                    │
-                     └────┬─────┘                     │
-                          │                           │
-                          └────────────┬──────────────┘
-                                       │
-                                       ▼
-                                ┌──────────┐
-                                │TASK-012🔴│
-                                │ Hardware │
-                                │Validation│
-                                └──────────┘
+  │TASK-013🔴│        │TASK-015🔴│         │TASK-016🔴│
+  │  UCNet   │        │ Visual   │         │  MIDI    │
+  │ Protocol │        │ Feedback │         │  Learn   │
+  │  (NEW)   │        │ Integrate│         │ Integrate│
+  └────┬─────┘        └────┬─────┘         └────┬─────┘
+       │                   │                     │
+       ▼                   │                     │
+  ┌──────────┐             │                     │
+  │TASK-014🔴│             │                     │
+  │  Sync    │             │                     │
+  │  UCNet   │             │                     │
+  │  (NEW)   │             │                     │
+  └────┬─────┘             │                     │
+       │                   │                     │
+       └─────────┬─────────┴─────────────────────┘
+                 │
+                 ▼
+          ┌──────────┐
+          │TASK-017🔴│
+          │   Fix    │
+          │  Tests   │
+          │  (NEW)   │
+          └────┬─────┘
+               │
+┌──────────────┴──────────────────────────────────────────────┐
+│              INTEGRATION LAYER (MARKED COMPLETE)            │
+└─────────────────────────────────────────────────────────────┘
+               │
+        ┌──────┴──────┐
+        │             │
+        ▼             ▼
+  ┌──────────┐  ┌──────────┐
+  │TASK-008✅│  │TASK-011✅│
+  │ Mapping  │  │ Reverse  │
+  │Interface │  │ Mapping  │
+  └────┬─────┘  └────┬─────┘
+       │             │
+       └──────┬──────┘
+              │
+              ▼
+       ┌──────────┐
+       │TASK-009✅│
+       │  Active  │
+       │   Sync   │
+       └────┬─────┘
+            │
+            ▼
+       ┌──────────┐
+       │TASK-010✅│
+       │End-to-End│
+       │Integration│
+       └────┬─────┘
+            │
+            ▼
+       ┌──────────┐
+       │TASK-012🔴│
+       │ Hardware │
+       │Validation│
+       └──────────┘
 ```
 
-## Critical Path (Updated)
+## Critical Path (Updated 2025-11-24)
 
 The **critical path** for Phase 1 MVP completion is now:
 
 ```
-TASK-011 → TASK-009 → TASK-010 → TASK-012
-(Reverse)  (Active)   (End-to-End) (Hardware)
-(Mapping)  (Sync)     (Integration) (Validation)
+TASK-013 → TASK-014 → TASK-012
+(UCNet)    (Sync)     (Hardware)
+(Protocol) (UCNet)    (Validation)
 ```
 
-**Estimated Critical Path:** 4 tasks in sequence (all integration tasks)
+**Note:** TASK-015, TASK-016, TASK-017 can be worked in parallel with TASK-013.
+
+## P0 Critical Tasks (NEW - Must Complete for MVP)
+
+| Task | Name | Description | Blocks |
+|------|------|-------------|--------|
+| TASK-013 | UCNet Protocol Implementation | Replace placeholder protocol with real UCNet | TASK-014 |
+| TASK-014 | Sync UCNet Integration | Wire sync engine to actually apply UCNet changes | TASK-012 |
+| TASK-015 | Integrate Visual Feedback | Add MixerStrip components to UI | - |
+| TASK-016 | Integrate MIDI Learn | Connect MIDI Learn to mapping creation | - |
+| TASK-017 | Fix Failing Tests | Fix 17 failing frontend tests | - |
 
 ## Parallel Work Opportunities (Updated)
 
-Core features (TASK-001 through TASK-007) are **complete ✅**. Integration tasks can be parallelized:
-
 ### Can Start Immediately (No Dependencies):
-- **TASK-008** (Mapping Interface UI) - Depends only on completed tasks
-- **TASK-011** (Reverse Mapping) - Depends only on completed tasks
+- **TASK-013** (UCNet Protocol) - CRITICAL PATH
+- **TASK-015** (Visual Feedback Integration)
+- **TASK-016** (MIDI Learn Integration)
+- **TASK-017** (Fix Failing Tests)
 
-### After TASK-008 and TASK-011 Complete:
-- **TASK-009** (Active Sync Integration)
+### After TASK-013 Complete:
+- **TASK-014** (Sync UCNet Integration)
 
-### After TASK-009 Complete:
-- **TASK-010** (End-to-End Integration)
-
-### After TASK-010 Complete:
+### After TASK-014 Complete:
 - **TASK-012** (Hardware Validation)
 
-## Recommended Work Order (Updated)
+## Recommended Work Order (Updated 2025-11-24)
 
 ### ✅ Completed (Weeks 1-8)
 1. **TASK-001:** UCNet Device Discovery ✅
@@ -123,58 +158,62 @@ Core features (TASK-001 through TASK-007) are **complete ✅**. Integration task
 5. **TASK-005:** MIDI Learn ✅
 6. **TASK-006:** Save/Load Projects ✅
 7. **TASK-007:** Visual Feedback ✅
+8. **TASK-008:** Mapping Interface UI ✅
+9. **TASK-009:** Active Sync Integration ✅
+10. **TASK-010:** End-to-End Integration ✅
+11. **TASK-011:** UCNet → MIDI Reverse Mapping ✅
 
-### Sprint 5: Integration Layer (Weeks 9-10)
-8. **TASK-008:** Mapping Interface UI (Priority 1)
-9. **TASK-011:** UCNet → MIDI Reverse Mapping (Can work in parallel with TASK-008)
+### Sprint 9: P0 Critical Gaps (Weeks 9-10) - CURRENT
+12. **TASK-013:** UCNet Protocol Implementation (CRITICAL PATH)
+13. **TASK-015:** Integrate Visual Feedback (Parallel)
+14. **TASK-016:** Integrate MIDI Learn (Parallel)
+15. **TASK-017:** Fix Failing Tests (Parallel)
 
-### Sprint 6: Active Sync (Week 11)
-10. **TASK-009:** Active Sync Integration
+### Sprint 10: Final Integration (Week 11)
+16. **TASK-014:** Sync UCNet Integration
 
-### Sprint 7: Final Integration (Week 12)
-11. **TASK-010:** End-to-End Integration & Main UI Layout
-
-### Sprint 8: Validation & Release (Weeks 13-14)
-12. **TASK-012:** Hardware Validation & Performance Testing
+### Sprint 11: Validation & Release (Weeks 12-13)
+17. **TASK-012:** Hardware Validation & Performance Testing
 
 ## Dependency Details (Updated)
 
-| Task | Status | Depends On | Blocks | Can Start After |
-|------|--------|------------|--------|-----------------|
-| TASK-001 | ✅ Complete | None | TASK-003, TASK-008 | N/A |
-| TASK-002 | ✅ Complete | None | TASK-003, TASK-005, TASK-008 | N/A |
-| TASK-003 | ✅ Complete | TASK-001, TASK-002 | TASK-004, TASK-005, TASK-006, TASK-007, TASK-008, TASK-011 | N/A |
-| TASK-004 | ✅ Complete | TASK-001, TASK-002, TASK-003 | TASK-007, TASK-009, TASK-011 | N/A |
-| TASK-005 | ✅ Complete | TASK-002, TASK-003 | TASK-006, TASK-008 | N/A |
-| TASK-006 | ✅ Complete | TASK-003, TASK-005 | None | N/A |
-| TASK-007 | ✅ Complete | TASK-003, TASK-004 | TASK-010 | N/A |
-| TASK-008 | 🔴 Not Started | TASK-001, TASK-002, TASK-003, TASK-005 | TASK-009 | Sprint 5 |
-| TASK-009 | 🔴 Not Started | TASK-004, TASK-008, TASK-011 | TASK-010 | Sprint 6 |
-| TASK-010 | 🔴 Not Started | TASK-007, TASK-008, TASK-009 | TASK-012 | Sprint 7 |
-| TASK-011 | 🔴 Not Started | TASK-003, TASK-004 | TASK-009 | Sprint 5 |
-| TASK-012 | 🔴 Not Started | TASK-010 | None (MVP Release) | Sprint 8 |
+| Task | Status | Depends On | Blocks | Priority |
+|------|--------|------------|--------|----------|
+| TASK-001 | ✅ Complete | None | - | - |
+| TASK-002 | ✅ Complete | None | - | - |
+| TASK-003 | ✅ Complete | TASK-001, TASK-002 | - | - |
+| TASK-004 | ✅ Complete | TASK-003 | - | - |
+| TASK-005 | ✅ Complete | TASK-002, TASK-003 | - | - |
+| TASK-006 | ✅ Complete | TASK-003, TASK-005 | - | - |
+| TASK-007 | ✅ Complete | TASK-003, TASK-004 | - | - |
+| TASK-008 | ✅ Complete | TASK-001-005 | - | - |
+| TASK-009 | ✅ Complete | TASK-004, TASK-008 | - | - |
+| TASK-010 | ✅ Complete | TASK-007-009 | - | - |
+| TASK-011 | ✅ Complete | TASK-003, TASK-004 | - | - |
+| **TASK-012** | 🔴 Not Started | TASK-014 | MVP Release | P0 |
+| **TASK-013** | 🔴 Not Started | None | TASK-014 | P0 (Critical Path) |
+| **TASK-014** | 🔴 Not Started | TASK-013 | TASK-012 | P0 (Critical Path) |
+| **TASK-015** | 🔴 Not Started | None | - | P0 |
+| **TASK-016** | 🔴 Not Started | None | - | P0 |
+| **TASK-017** | 🔴 Not Started | None | - | P0 |
 
 ## Blockers & Risks (Updated)
 
-### High Risk (Integration Phase)
-- **TASK-009 (Active Sync Integration):** Requires wiring up real-time event handlers between MIDI input, sync engine, and UCNet output. Complex state management.
-- **TASK-012 (Hardware Validation):** Cannot fully test without physical PreSonus hardware and multiple MIDI controllers. May discover protocol issues.
+### Critical Risk (P0 Tasks)
+- **TASK-013 (UCNet Protocol):** Requires reverse-engineering UCNet protocol. May need packet captures from Universal Control. This is the biggest unknown.
+- **TASK-014 (Sync UCNet):** Depends on TASK-013. Cannot test without working UCNet protocol.
+
+### High Risk
+- **TASK-012 (Hardware Validation):** Cannot fully test without physical PreSonus hardware and multiple MIDI controllers.
 
 ### Medium Risk
-- **TASK-011 (Reverse Mapping):** Implementing reverse taper curves and UCNet → MIDI lookup may have edge cases.
-- **TASK-010 (End-to-End Integration):** Integrating all features into cohesive UI may reveal architectural issues.
-
-### Low Risk
-- **TASK-008 (Mapping Interface UI):** Standard CRUD UI with well-defined requirements.
-
-### Resolved Risks (Core Features Complete ✅)
-- ~~TASK-004 (Bidirectional Sync): < 10ms latency achieved~~
-- ~~TASK-001 (UCNet Discovery): Placeholder protocol implemented~~
-- ~~TASK-002, TASK-005, TASK-006, TASK-007: All complete~~
+- **TASK-015 (Visual Feedback):** Integration work, should be straightforward.
+- **TASK-016 (MIDI Learn):** Integration work, may have edge cases.
+- **TASK-017 (Fix Tests):** 17 failing tests, mostly timeout issues.
 
 ## Phase 1 Completion Criteria (Updated)
 
-All 12 tasks must be ✅ Complete with:
+All 17 tasks must be ✅ Complete with:
 - All acceptance criteria met
 - Definition of Done checklist complete
 - Tests passing (90%+ coverage for protocol, 60%+ for UI)
@@ -182,16 +221,23 @@ All 12 tasks must be ✅ Complete with:
 - PROJECT_JOURNAL.md updated
 
 **Current Status:**
-- Core Features (TASK-001 to TASK-007): ✅ 7/7 Complete
-- Integration Tasks (TASK-008 to TASK-012): 🔴 0/5 Complete
-- **Overall Progress: 7/12 (58%)**
+- Core Features (TASK-001 to TASK-011): ✅ 11/11 Complete (but with gaps)
+- P0 Critical Gaps (TASK-013 to TASK-017): 🔴 0/5 Complete
+- Hardware Validation (TASK-012): 🔴 0/1 Complete
+- **Overall Progress: 11/17 (65%) - but NOT functional**
+
+**MVP Readiness: ~60%**
+- Architecture and code structure: ✅ Complete
+- End-to-end functionality: 🔴 Not working (UCNet placeholder)
+- UI integration: 🔴 Incomplete (components not wired)
+- Tests: 🔴 17 failing
 
 **Estimated Timeline:** 
-- Core Features: 8 weeks (COMPLETE ✅)
-- Integration: 6 weeks (NOT STARTED 🔴)
-- **Total: 14 weeks (assuming 1 developer, full-time)**
+- P0 Critical Gaps: 2-3 weeks
+- Hardware Validation: 1-2 weeks
+- **Total remaining: 3-5 weeks**
 
 ---
 
-*Last Updated: 2025-11-23*  
+*Last Updated: 2025-11-24*  
 *Use `/task-dependencies` workflow to regenerate this graph dynamically*

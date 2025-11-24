@@ -49,8 +49,8 @@ export function DeviceManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Mixers & Interfaces</h2>
-          <p className="text-slate-400 text-sm mt-1">
+          <h2 className="text-lg font-semibold text-white">Mixers & Interfaces</h2>
+          <p className="text-slate-400 text-xs mt-0.5">
             PreSonus UCNet devices (Series III, Quantum)
           </p>
         </div>
@@ -58,7 +58,7 @@ export function DeviceManager() {
         <button
           onClick={discoverDevices}
           disabled={isDiscovering}
-          className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 text-slate-950 font-semibold rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 text-slate-950 font-medium rounded-md transition-colors"
         >
           {isDiscovering ? "Discovering..." : "Refresh"}
         </button>
@@ -121,8 +121,8 @@ function DeviceCard({ device, isConnected, onToggleConnection }: DeviceCardProps
             
             {/* Device Info */}
             <div>
-              <h3 className="text-white font-semibold">{device.model}</h3>
-              <div className="flex items-center gap-3 mt-1 text-sm text-slate-400">
+              <h3 className="text-white text-sm font-medium">{device.model}</h3>
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                 <span className="flex items-center gap-1">
                   <ConnectionTypeIcon type={device.connection_type} />
                   {device.connection_type}
@@ -139,7 +139,7 @@ function DeviceCard({ device, isConnected, onToggleConnection }: DeviceCardProps
         {/* Connect/Disconnect Button */}
         <button
           onClick={onToggleConnection}
-          className={`px-4 py-2 font-semibold rounded-lg transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             isConnected
               ? "bg-slate-700 hover:bg-slate-600 text-white"
               : "bg-cyan-500 hover:bg-cyan-600 text-slate-950"

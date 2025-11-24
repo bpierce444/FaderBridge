@@ -35,7 +35,7 @@ export function MidiDeviceList() {
         <div>
           <h2 className="text-lg font-semibold text-white">Controllers</h2>
           <p className="text-slate-400 text-xs mt-0.5">
-            MIDI controllers and control surfaces
+            Control surfaces with faders and/or assignable buttons
           </p>
         </div>
         <button
@@ -56,9 +56,9 @@ export function MidiDeviceList() {
 
       {/* Input Devices */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-cyan-400 flex items-center gap-2">
           <svg
-            className="w-5 h-5 text-cyan-400"
+            className="w-4 h-4 text-cyan-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -73,7 +73,12 @@ export function MidiDeviceList() {
           Controller Inputs ({inputDevices.length})
         </h3>
         {inputDevices.length === 0 ? (
-          <p className="text-slate-500 text-sm italic">No controller inputs found</p>
+          <div className="p-3 bg-slate-900/50 border border-slate-800 rounded-md">
+            <p className="text-slate-400 text-xs">No control surfaces found</p>
+            <p className="text-slate-500 text-xs mt-1">
+              Connect a device with physical faders or assignable buttons (e.g., FaderPort, X-Touch, BCF2000)
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {inputDevices.map(device => (
@@ -90,9 +95,9 @@ export function MidiDeviceList() {
 
       {/* Output Devices */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-cyan-400 flex items-center gap-2">
           <svg
-            className="w-5 h-5 text-cyan-400"
+            className="w-4 h-4 text-cyan-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -107,7 +112,12 @@ export function MidiDeviceList() {
           Controller Outputs ({outputDevices.length})
         </h3>
         {outputDevices.length === 0 ? (
-          <p className="text-slate-500 text-sm italic">No controller outputs found</p>
+          <div className="p-3 bg-slate-900/50 border border-slate-800 rounded-md">
+            <p className="text-slate-400 text-xs">No control surfaces found</p>
+            <p className="text-slate-500 text-xs mt-1">
+              Motorized fader support requires MIDI output (e.g., FaderPort, X-Touch)
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {outputDevices.map(device => (
@@ -155,8 +165,8 @@ function DeviceCard({
             
             {/* Device Info */}
             <div className="flex-1 min-w-0">
-              <h4 className="text-white font-semibold truncate">{device.name}</h4>
-              <div className="flex items-center gap-2 mt-1 text-sm text-slate-400">
+              <h4 className="text-white text-sm font-medium truncate">{device.name}</h4>
+              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                 {device.manufacturer && (
                   <>
                     <span>{device.manufacturer}</span>
@@ -172,7 +182,7 @@ function DeviceCard({
         {/* Connect/Disconnect Button */}
         <button
           onClick={() => (isConnected ? onDisconnect(device) : onConnect(device))}
-          className={`px-4 py-2 font-semibold rounded-lg transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             isConnected
               ? 'bg-slate-700 hover:bg-slate-600 text-white'
               : 'bg-cyan-500 hover:bg-cyan-600 text-slate-950'

@@ -99,6 +99,15 @@ impl DeviceDatabase {
             description: "StudioLive Series III - Network MIDI control".to_string(),
         });
         
+        // Fender Tone Master Pro (audio interface, not a controller)
+        devices.insert("Tone Master Pro".to_string(), DeviceInfo {
+            name_pattern: "Tone Master Pro".to_string(),
+            category: DeviceCategory::AudioInterface,
+            vendor_id: None, // Fender device
+            product_id: None,
+            description: "Fender Tone Master Pro - USB audio interface (not a MIDI controller)".to_string(),
+        });
+        
         Self { devices }
     }
     
@@ -146,24 +155,42 @@ impl DeviceDatabase {
     
     /// Categorize using heuristics (pattern matching)
     fn categorize_by_heuristics(&self, name: &str) -> DeviceCategory {
+        let name_lower = name.to_lowercase();
+        
         // UCNET MIDI devices are always controllers
         if name.contains("UCNET MIDI") || name.contains("UCNet MIDI") {
             return DeviceCategory::Controller;
         }
         
-        // Quantum devices are audio interfaces
-        if name.contains("Quantum") {
-            return DeviceCategory::AudioInterface;
+        // Audio interfaces and devices without physical controls
+        // These have MIDI ports but are NOT control surfaces
+        let audio_interface_patterns = [
+            "quantum", "studiolive", "audiobox", "studio 68", "studio 192",
+            "scarlett", "clarett", "saffire", "liquid", // Focusrite
+            "motu", "ultralite", "traveler", "828", // MOTU
+            "apollo", "twin", "duo", "quad", // Universal Audio
+            "tone master", "axe-fx", "helix", "kemper", "quad cortex", // Guitar processors
+            "audio interface", "sound card",
+        ];
+        
+        for pattern in &audio_interface_patterns {
+            if name_lower.contains(pattern) {
+                return DeviceCategory::AudioInterface;
+            }
         }
         
-        // FaderPort devices are controllers
-        if name.contains("FaderPort") || name.contains("FP") {
-            return DeviceCategory::Controller;
-        }
+        // Known control surface patterns (devices WITH faders/buttons)
+        let controller_patterns = [
+            "faderport", "x-touch", "bcf", "bcr", // Motorized faders
+            "launchpad", "push", "maschine", "apc", // Pad controllers
+            "keylab", "sl mk", "impulse", // Keyboard controllers with controls
+            "control", "surface", "controller",
+        ];
         
-        // StudioLive without "UCNET MIDI" is likely audio interface
-        if name.contains("StudioLive") && !name.contains("UCNET MIDI") {
-            return DeviceCategory::AudioInterface;
+        for pattern in &controller_patterns {
+            if name_lower.contains(pattern) {
+                return DeviceCategory::Controller;
+            }
         }
         
         // Default: if it's PreSonus and has "Control" or "MIDI" in name, it's a controller
@@ -171,8 +198,9 @@ impl DeviceDatabase {
             return DeviceCategory::Controller;
         }
         
-        // Default: treat as controller (most MIDI devices are controllers)
-        DeviceCategory::Controller
+        // Conservative default: treat unknown devices as audio interfaces
+        // This prevents non-control-surface devices from cluttering the Controllers list
+        DeviceCategory::AudioInterface
     }
 }
 
@@ -220,6 +248,36 @@ mod tests {
         assert_eq!(
             db.categorize_device("UCNET MIDI Unknown Device", None, None),
             DeviceCategory::Controller
+        );
+    }
+    
+    #[test]
+    fn test_tone_master_pro_categorization() {
+        let db = DeviceDatabase::new();
+        // Tone Master Pro should be categorized as audio interface, not controller
+        assert_eq!(
+            db.categorize_device("Tone Master Pro", None, None),
+            DeviceCategory::AudioInterface
+        );
+    }
+    
+    #[test]
+    fn test_x_touch_categorization() {
+        let db = DeviceDatabase::new();
+        // X-Touch is a known control surface
+        assert_eq!(
+            db.categorize_device("Behringer X-Touch", None, None),
+            DeviceCategory::Controller
+        );
+    }
+    
+    #[test]
+    fn test_conservative_default() {
+        let db = DeviceDatabase::new();
+        // Unknown devices default to AudioInterface to avoid clutter
+        assert_eq!(
+            db.categorize_device("Unknown MIDI Device", None, None),
+            DeviceCategory::AudioInterface
         );
     }
 }

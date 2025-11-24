@@ -50,9 +50,9 @@ export function Dashboard() {
       leftPanel={
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-white mb-3">MIDI Devices</h2>
-            <p className="text-sm text-slate-400 mb-4">
-              Connect your MIDI controllers
+            <h2 className="text-base font-semibold text-white mb-2">MIDI Devices</h2>
+            <p className="text-xs text-slate-400 mb-3">
+              Control surfaces with physical faders/buttons
             </p>
           </div>
           <MidiDeviceList />
@@ -76,12 +76,12 @@ export function Dashboard() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <h3 className="text-xl font-bold text-white mb-2">Welcome to FaderBridge</h3>
-                <p className="text-slate-400 mb-6">
+                <h3 className="text-lg font-semibold text-white mb-2">Welcome to FaderBridge</h3>
+                <p className="text-sm text-slate-400 mb-4">
                   Create or load a project to start mapping MIDI controls to UCNet parameters
                 </p>
-                <div className="text-sm text-slate-500">
-                  Click <span className="text-cyan-400 font-semibold">New</span> in the top bar to get started
+                <div className="text-xs text-slate-500">
+                  Click <span className="text-cyan-400 font-medium">New</span> in the top bar to get started
                 </div>
               </div>
             </div>
@@ -93,8 +93,8 @@ export function Dashboard() {
       rightPanel={
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-white mb-3">UCNet Devices</h2>
-            <p className="text-sm text-slate-400 mb-4">
+            <h2 className="text-base font-semibold text-white mb-2">UCNet Devices</h2>
+            <p className="text-xs text-slate-400 mb-3">
               Connect to PreSonus hardware
             </p>
           </div>
