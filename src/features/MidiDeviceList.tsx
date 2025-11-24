@@ -33,15 +33,15 @@ export function MidiDeviceList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Controllers</h2>
-          <p className="text-slate-400 text-sm mt-1">
+          <h2 className="text-lg font-semibold text-white">Controllers</h2>
+          <p className="text-slate-400 text-xs mt-0.5">
             MIDI controllers and control surfaces
           </p>
         </div>
         <button
           onClick={discoverDevices}
           disabled={loading}
-          className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 text-slate-950 font-semibold rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 text-slate-950 font-medium rounded-md transition-colors"
         >
           {loading ? 'Scanning...' : 'Refresh'}
         </button>

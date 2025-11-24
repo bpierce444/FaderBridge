@@ -40,7 +40,8 @@ pub enum MidiConnectionStatus {
 }
 
 /// MIDI message types we care about for control surfaces
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum MidiMessageType {
     /// Control Change (CC) message
     ControlChange { channel: u8, controller: u8, value: u8 },

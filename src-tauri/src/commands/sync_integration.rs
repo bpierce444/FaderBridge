@@ -4,11 +4,8 @@
 use crate::commands::midi::MidiState;
 use crate::commands::sync::SyncState;
 use crate::midi::types::MidiMessageType;
-use crate::sync::SyncEvent;
 use log::{debug, error, info};
-use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::RwLock;
+use tauri::{AppHandle, Emitter, State};
 
 /// Starts the sync integration
 /// Sets up event handlers for MIDI input and UCNet changes
