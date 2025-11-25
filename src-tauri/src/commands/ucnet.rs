@@ -30,26 +30,34 @@ impl UcNetState {
     }
 }
 
-/// Discovers UCNet devices on network and USB
+/// Discovers UCNet devices via USB/Thunderbolt only
+/// 
+/// Network discovery is disabled because it picks up too many false positives
+/// (random network devices responding to broadcast). USB discovery is more reliable
+/// and only shows actual PreSonus mixers and interfaces.
 #[tauri::command]
 pub async fn discover_devices(state: State<'_, UcNetState>) -> Result<Vec<UcNetDevice>, String> {
-    log::info!("Starting device discovery");
+    log::info!("Starting USB device discovery (network discovery disabled)");
     
     let mut all_devices = Vec::new();
     
-    // Discover network devices
-    match state.discovery.discover_network_devices().await {
-        Ok(network_devices) => {
-            log::info!("Found {} network device(s)", network_devices.len());
-            all_devices.extend(network_devices.into_iter().map(UcNetDevice::from_network));
-        }
-        Err(e) => {
-            log::error!("Network discovery failed: {}", e);
-            // Continue with USB discovery even if network fails
-        }
-    }
+    // NOTE: Network discovery disabled - it picks up too many false positives
+    // (random devices on the network that respond to UDP broadcasts).
+    // USB/Thunderbolt discovery is more reliable for identifying actual
+    // PreSonus mixers and interfaces.
+    //
+    // To re-enable network discovery in the future, uncomment:
+    // match state.discovery.discover_network_devices().await {
+    //     Ok(network_devices) => {
+    //         log::info!("Found {} network device(s)", network_devices.len());
+    //         all_devices.extend(network_devices.into_iter().map(UcNetDevice::from_network));
+    //     }
+    //     Err(e) => {
+    //         log::error!("Network discovery failed: {}", e);
+    //     }
+    // }
     
-    // Discover USB devices
+    // Discover USB/Thunderbolt devices
     match state.discovery.discover_usb_devices() {
         Ok(usb_devices) => {
             log::info!("Found {} USB device(s)", usb_devices.len());

@@ -37,6 +37,54 @@
 
 ## Journal Entries
 
+## 2025-11-25 - TASK-016: Integrate MIDI Learn into UI (In Progress)
+**Duration:** ~1 hour
+**Phase:** Phase 1 MVP (Critical)
+**Status:** In Progress 🟡
+
+### What Was Accomplished
+- **Dashboard Integration**
+  - Added `MidiLearn` overlay component to `Dashboard.tsx`
+  - Overlay renders as fixed position element when in learn mode
+  - Shows countdown timer, device info, and cancel button
+
+- **MappingManager Integration**
+  - Added `useMidiLearn` hook to `MappingManager.tsx`
+  - Added "Learn" button next to MIDI CC input field
+  - Button shows loading state when learning
+  - Cancel link appears during learn mode
+  - Button disabled until UCNet parameter is selected
+
+- **Fixed All useMidiLearn Tests**
+  - Fixed 9 failing tests that were timing out
+  - Issue was fake timers conflicting with async React state updates
+  - Solution: Use real timers with `waitFor` for most tests
+  - Use long poll intervals (10000ms) to avoid interference in non-polling tests
+  - All 9 tests now pass
+
+### What Was Learned
+- **Vitest + Fake Timers**: Fake timers don't work well with React Testing Library's `waitFor`
+  - `waitFor` uses real timers internally, causing deadlocks with fake timers
+  - Better approach: Use real timers and short poll intervals for polling tests
+  - Use long poll intervals (10000ms) for non-polling tests to avoid interference
+
+- **MIDI Learn Architecture**: The backend has complete learn logic but needs MIDI message routing
+  - `process_message()` creates mappings when MIDI input is received
+  - Frontend polls `get_midi_learn_state` for status updates
+  - Full integration requires connecting MIDI input to learn engine
+
+### Blockers / Issues
+- **MIDI Message Routing**: The backend `MidiLearn.process_message()` is not yet connected to actual MIDI input
+  - Learn mode starts but cannot capture MIDI messages without this connection
+  - This is a backend wiring issue, not a UI issue
+
+### Next Steps
+- Connect MIDI input to learn engine in backend
+- Test with real MIDI hardware
+- Complete acceptance criteria verification
+
+---
+
 ## 2025-11-25 - TASK-014: Wire Sync Engine to UCNet (Complete)
 **Duration:** ~1.5 hours
 **Phase:** Phase 1 MVP (Critical)

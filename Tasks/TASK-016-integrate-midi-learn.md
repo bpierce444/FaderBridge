@@ -1,12 +1,12 @@
 # Task: Integrate MIDI Learn into UI
 
 **ID:** TASK-016  
-**Status:** 🔴 Not Started  
+**Status:** 🟡 In Progress  
 **Priority:** Critical (P0)  
 **Phase:** Phase 1 MVP  
 **Assigned:** TBD  
 **Created:** 2025-11-24  
-**Updated:** 2025-11-24  
+**Updated:** 2025-11-25  
 
 ---
 
@@ -23,15 +23,15 @@ The following components exist but are not connected:
 The MVP success criteria states: "Map 8 faders to channels 1-8 using MIDI Learn" - this workflow doesn't exist.
 
 ## Acceptance Criteria
-- [ ] "MIDI Learn" button visible in MappingManager
-- [ ] Clicking MIDI Learn enters learn mode with visual feedback
+- [x] "MIDI Learn" button visible in MappingManager
+- [x] Clicking MIDI Learn enters learn mode with visual feedback
 - [ ] Moving a MIDI control captures the CC/Note/Channel
-- [ ] User can select target UCNet parameter before or after learning
+- [x] User can select target UCNet parameter before or after learning
 - [ ] Mapping is automatically created and saved to database
-- [ ] ESC key cancels learn mode
-- [ ] 10-second timeout with countdown displayed
+- [x] ESC key cancels learn mode
+- [x] 10-second timeout with countdown displayed
 - [ ] Duplicate mapping detection warns user
-- [ ] Learn mode status overlay visible during learning
+- [x] Learn mode status overlay visible during learning
 
 ## Dependencies
 - **Depends On:** TASK-005 (MIDI Learn - backend), TASK-008 (Mapping Interface UI)
@@ -126,14 +126,14 @@ The MVP success criteria states: "Map 8 faders to channels 1-8 using MIDI Learn"
 - `is_midi_learning` - Check if in learn mode
 
 ## Testing Requirements
-- [ ] LearnButton renders in MappingManager
-- [ ] Clicking LearnButton starts learn mode
-- [ ] MidiLearn overlay appears during learning
-- [ ] ESC key cancels learn mode
-- [ ] Timeout after 10 seconds
+- [x] LearnButton renders in MappingManager
+- [x] Clicking LearnButton starts learn mode
+- [x] MidiLearn overlay appears during learning
+- [x] ESC key cancels learn mode
+- [x] Timeout after 10 seconds
 - [ ] Learn result populates MIDI fields
 - [ ] Mapping created after learn + parameter selection
-- [ ] Fix all 9 failing useMidiLearn tests
+- [x] Fix all 9 failing useMidiLearn tests
 
 ## Definition of Done Checklist
 - [ ] Code follows AI_CODING_RULES.md
@@ -149,7 +149,31 @@ The MVP success criteria states: "Map 8 faders to channels 1-8 using MIDI Learn"
 
 ## Work Log
 
-*(No work started yet)*
+### 2025-11-25 - UI Integration Complete
+**Duration:** ~1 hour
+
+**Completed:**
+- Added `MidiLearn` overlay to `Dashboard.tsx` (renders as fixed overlay when learning)
+- Added `useMidiLearn` hook to `MappingManager.tsx`
+- Added "Learn" button next to MIDI CC input field with:
+  - Loading state animation when learning
+  - Disabled state until UCNet parameter selected
+  - Cancel link during learn mode
+- Fixed all 9 failing `useMidiLearn.test.ts` tests:
+  - Root cause: Fake timers conflicting with React Testing Library's `waitFor`
+  - Solution: Use real timers with appropriate poll intervals
+- TypeScript compiles with no errors
+- All useMidiLearn tests pass (9/9)
+
+**Files Modified:**
+- `src/features/Dashboard.tsx` - Added MidiLearn overlay
+- `src/features/MappingManager.tsx` - Added Learn button and hook integration
+- `src/hooks/useMidiLearn.test.ts` - Fixed all 9 failing tests
+
+**Remaining Work:**
+- Backend needs to route MIDI input to `MidiLearn.process_message()` for actual capture
+- Learn result needs to populate MIDI fields in form
+- Auto-create mapping when learn completes with parameter selected
 
 ---
 

@@ -11,6 +11,7 @@ import { StatusBar } from '../components/StatusBar';
 import { MidiDeviceList } from './MidiDeviceList';
 import { DeviceManager } from './DeviceManager';
 import { MappingManager } from './MappingManager';
+import { MidiLearn } from './MidiLearn';
 
 /**
  * Main dashboard component that integrates all Phase 1 MVP features
@@ -45,6 +46,7 @@ export function Dashboard() {
   }, []);
 
   return (
+    <>
     <Layout
       topBar={<TopBar />}
       leftPanel={
@@ -109,5 +111,8 @@ export function Dashboard() {
         />
       }
     />
+    {/* MIDI Learn overlay - renders as fixed overlay when in learn mode */}
+    <MidiLearn />
+    </>
   );
 }

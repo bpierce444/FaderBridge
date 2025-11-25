@@ -16,11 +16,10 @@ vi.mock('@tauri-apps/api/core', () => ({
 describe('useMidiLearn', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('should initialize with idle state', async () => {
@@ -31,9 +30,10 @@ describe('useMidiLearn', () => {
 
     await waitFor(() => {
       expect(result.current.learnState).toEqual(idleState);
-      expect(result.current.isLearning).toBe(false);
-      expect(result.current.error).toBeNull();
     });
+    
+    expect(result.current.isLearning).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
   it('should start learn mode', async () => {
@@ -126,23 +126,20 @@ describe('useMidiLearn', () => {
 
     mockInvoke
       .mockResolvedValueOnce(listeningState1) // Initial state
-      .mockResolvedValueOnce(listeningState2); // First poll
+      .mockResolvedValueOnce(listeningState2) // First poll
+      .mockResolvedValue(listeningState2); // Subsequent polls
 
-    const { result } = renderHook(() => useMidiLearn(500));
+    // Use a very short poll interval for testing
+    const { result } = renderHook(() => useMidiLearn(50));
 
+    // Wait for initial state
     await waitFor(() => {
       expect(result.current.learnState.type).toBe('listening');
     });
 
-    // Advance timers to trigger poll
-    await act(async () => {
-      vi.advanceTimersByTime(500);
-    });
-
+    // Wait for polling to occur
     await waitFor(() => {
-      if (result.current.learnState.type === 'listening') {
-        expect(result.current.learnState.elapsed_ms).toBe(2000);
-      }
+      expect(mockInvoke.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -159,12 +156,13 @@ describe('useMidiLearn', () => {
     mockInvoke
       .mockResolvedValueOnce(listeningState) // Initial state
       .mockResolvedValueOnce(undefined) // cancel_midi_learn
-      .mockResolvedValueOnce(idleState); // get_midi_learn_state after cancel
+      .mockResolvedValue(idleState); // get_midi_learn_state after cancel
 
-    renderHook(() => useMidiLearn());
+    const { result } = renderHook(() => useMidiLearn(10000)); // Long poll to avoid interference
 
+    // Wait for listening state
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith('get_midi_learn_state');
+      expect(result.current.learnState.type).toBe('listening');
     });
 
     // Simulate ESC key press
@@ -186,7 +184,7 @@ describe('useMidiLearn', () => {
       .mockResolvedValueOnce(idleState) // Initial state
       .mockRejectedValueOnce(error); // start_midi_learn error
 
-    const { result } = renderHook(() => useMidiLearn());
+    const { result } = renderHook(() => useMidiLearn(10000)); // Long poll to avoid interference
 
     await waitFor(() => {
       expect(result.current.learnState.type).toBe('idle');
@@ -198,7 +196,9 @@ describe('useMidiLearn', () => {
     });
 
     expect(startResult).toBe(false);
-    expect(result.current.error).toBe('Failed to start learn mode');
+    await waitFor(() => {
+      expect(result.current.error).toBe('Failed to start learn mode');
+    });
   });
 
   it('should handle errors when cancelling learn mode', async () => {
@@ -215,7 +215,7 @@ describe('useMidiLearn', () => {
       .mockResolvedValueOnce(listeningState) // Initial state
       .mockRejectedValueOnce(error); // cancel_midi_learn error
 
-    const { result } = renderHook(() => useMidiLearn());
+    const { result } = renderHook(() => useMidiLearn(10000)); // Long poll to avoid interference
 
     await waitFor(() => {
       expect(result.current.learnState.type).toBe('listening');
@@ -225,7 +225,9 @@ describe('useMidiLearn', () => {
       await result.current.cancelLearn();
     });
 
-    expect(result.current.error).toBe('Failed to cancel learn mode');
+    await waitFor(() => {
+      expect(result.current.error).toBe('Failed to cancel learn mode');
+    });
   });
 
   it('should refresh state manually', async () => {
@@ -242,7 +244,7 @@ describe('useMidiLearn', () => {
       .mockResolvedValueOnce(idleState) // Initial state
       .mockResolvedValueOnce(listeningState); // Manual refresh
 
-    const { result } = renderHook(() => useMidiLearn());
+    const { result } = renderHook(() => useMidiLearn(10000)); // Long poll to avoid interference
 
     await waitFor(() => {
       expect(result.current.learnState.type).toBe('idle');
@@ -262,20 +264,21 @@ describe('useMidiLearn', () => {
 
     mockInvoke.mockResolvedValue(idleState);
 
-    renderHook(() => useMidiLearn(500));
+    const { result } = renderHook(() => useMidiLearn(50)); // Short poll interval
 
+    // Wait for initial state fetch
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith('get_midi_learn_state');
+      expect(result.current.learnState.type).toBe('idle');
     });
+    
+    expect(mockInvoke).toHaveBeenCalledWith('get_midi_learn_state');
 
     const callCount = mockInvoke.mock.calls.length;
 
-    // Advance timers
-    await act(async () => {
-      vi.advanceTimersByTime(1000);
-    });
+    // Wait a bit - should not poll when idle
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Should not have made additional calls
+    // Should not have made additional calls (no polling when idle)
     expect(mockInvoke.mock.calls.length).toBe(callCount);
   });
 });

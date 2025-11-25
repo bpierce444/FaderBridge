@@ -87,7 +87,7 @@ export function useProjects(): UseProjectsReturn {
     }
   }, []);
 
-  // Create a new project
+  // Create a new project and set it as active
   const createProject = useCallback(
     async (req: CreateProjectRequest): Promise<Project> => {
       setError(null);
@@ -96,11 +96,14 @@ export function useProjects(): UseProjectsReturn {
           name: req.name,
           description: req.description,
         });
+        // Automatically set the new project as active
+        await invoke('set_active_project', { id: project.id });
         await refreshProjects();
         return project;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         setError(errorMsg);
+        console.error('Failed to create project:', err);
         throw err;
       }
     },

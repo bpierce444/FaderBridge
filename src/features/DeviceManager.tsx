@@ -77,7 +77,7 @@ export function DeviceManager() {
           <div className="p-8 text-center bg-slate-900/50 border border-slate-800 rounded-lg">
             <p className="text-slate-400">No mixers or interfaces found</p>
             <p className="text-slate-500 text-sm mt-2">
-              Make sure your Series III mixer or Quantum interface is powered on and connected to the network
+              Connect your Series III mixer or Quantum interface via USB or Thunderbolt
             </p>
           </div>
         )}
@@ -112,34 +112,25 @@ interface DeviceCardProps {
 
 function DeviceCard({ device, isConnected, onToggleConnection }: DeviceCardProps) {
   return (
-    <div className="p-4 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            {/* Connection Status Indicator */}
-            <ConnectionStatusIndicator state={device.state} />
-            
-            {/* Device Info */}
-            <div>
-              <h3 className="text-white text-sm font-medium">{device.model}</h3>
-              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  <ConnectionTypeIcon type={device.connection_type} />
-                  {device.connection_type}
-                </span>
-                <span>•</span>
-                <span>{device.identifier}</span>
-                <span>•</span>
-                <span>v{device.firmware_version}</span>
-              </div>
-            </div>
+    <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 transition-colors">
+      <div className="flex items-center gap-3">
+        {/* Connection Status Indicator */}
+        <ConnectionStatusIndicator state={device.state} />
+        
+        {/* Device Info - truncate long text */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white text-sm font-medium truncate">{device.model}</h3>
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-400">
+            <ConnectionTypeIcon type={device.connection_type} />
+            <span className="truncate">{device.identifier}</span>
+            <span className="flex-shrink-0">• v{device.firmware_version}</span>
           </div>
         </div>
 
-        {/* Connect/Disconnect Button */}
+        {/* Connect/Disconnect Button - fixed width to prevent cutoff */}
         <button
           onClick={onToggleConnection}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+          className={`flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             isConnected
               ? "bg-slate-700 hover:bg-slate-600 text-white"
               : "bg-cyan-500 hover:bg-cyan-600 text-slate-950"

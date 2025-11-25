@@ -52,7 +52,7 @@ export function Layout({
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - MIDI Devices */}
-        <div className="w-80 flex-shrink-0 border-r border-slate-800 overflow-y-auto">
+        <div className="w-72 min-w-[280px] flex-shrink-0 border-r border-slate-800 overflow-y-auto">
           <div className="p-4">
             {leftPanel}
           </div>
@@ -66,7 +66,7 @@ export function Layout({
         </div>
 
         {/* Right Panel - UCNet Devices */}
-        <div className="w-80 flex-shrink-0 border-l border-slate-800 overflow-y-auto">
+        <div className="w-80 min-w-[320px] flex-shrink-0 border-l border-slate-800 overflow-y-auto overflow-x-hidden">
           <div className="p-4">
             {rightPanel}
           </div>
