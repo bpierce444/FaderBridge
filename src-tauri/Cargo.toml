@@ -36,6 +36,9 @@ chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 env_logger = "0.11"
 
+# Compression (for UCNet ZLIB state dumps)
+flate2 = "1.0"
+
 [dev-dependencies]
 mockall = "0.13"
 tempfile = "3.8"

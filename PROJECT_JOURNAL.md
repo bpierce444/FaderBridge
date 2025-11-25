@@ -121,14 +121,37 @@
 
 ### Blockers / Issues
 - **Hardware Testing Required**: Need real StudioLive mixer to verify protocol implementation
-- **USB Protocol**: USB UCNet implementation still placeholder (requires bulk transfers)
-- **State Parsing**: ZLIB/UBJSON state dump parsing not yet implemented
 
 ### Next Steps
 - Test with real StudioLive Series III mixer
-- Implement ZLIB decompression for state dumps
-- Add parameter change event handling (receiving PV packets)
-- Implement USB UCNet protocol if needed
+- Wire sync engine to UCNet (TASK-014)
+
+### Additional Work (Same Session)
+
+**ZLIB Decompression:**
+- Added `decompress_zlib()` function using flate2 crate
+- Added `StateEntry` struct for parsed state dump entries
+- Added `parse_state_dump()` for extracting key-value pairs from decompressed data
+
+**Incoming Packet Handling:**
+- Added `IncomingPacket` enum for all incoming packet types (PV, KA, JM, ZB, MS)
+- Added `parse_incoming_packet()` to handle all packet types
+- Added `parse_packet_stream()` for parsing concatenated packets
+
+**USB Protocol Support:**
+- Added `usb` module with PreSonus vendor/product IDs (32S, 32SC, 64S, 32SX, 24R, 32R)
+- Added `is_supported_mixer()` and `get_model_name()` helpers
+- Added `UsbPacketBuffer` for handling fragmented USB transfers
+- USB endpoints: OUT=0x03, IN=0x83, Interface=3
+
+**New Tests (12 additional):**
+- ZLIB decompression roundtrip
+- Incoming packet parsing (KA, PV, JM, MS)
+- Packet stream parsing
+- USB mixer detection and model names
+- USB packet buffer (single, fragmented, multiple, garbage prefix)
+
+**Total: 29 protocol tests passing**
 
 ---
 
