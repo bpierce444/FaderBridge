@@ -111,6 +111,7 @@ fn main() {
             commands::sync_integration::start_sync_integration,
             commands::sync_integration::stop_sync_integration,
             commands::sync_integration::trigger_midi_sync,
+            commands::sync_integration::trigger_ucnet_sync,
             commands::sync_integration::get_sync_status,
             // Export/Import commands
             commands::projects::export_project,

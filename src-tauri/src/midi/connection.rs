@@ -228,6 +228,38 @@ impl MidiConnectionManager {
 
         Ok(())
     }
+
+    /// Get IDs of all connected output devices
+    pub fn get_connected_output_ids(&self) -> MidiResult<Vec<String>> {
+        let connections = self.output_connections.read()
+            .map_err(|e| MidiError::Other(format!("Failed to acquire lock: {}", e)))?;
+        Ok(connections.keys().cloned().collect())
+    }
+
+    /// Send a MIDI message to all connected output devices
+    ///
+    /// Returns the number of devices the message was sent to successfully.
+    /// Errors are logged but don't stop sending to other devices.
+    pub fn broadcast_message(&self, message: MidiMessageType) -> MidiResult<usize> {
+        let mut connections = self.output_connections.write()
+            .map_err(|e| MidiError::Other(format!("Failed to acquire lock: {}", e)))?;
+        
+        let bytes = message.to_bytes();
+        let mut success_count = 0;
+
+        for (device_id, connection) in connections.iter_mut() {
+            match connection.send(&bytes) {
+                Ok(()) => {
+                    success_count += 1;
+                }
+                Err(e) => {
+                    log::warn!("Failed to send MIDI to {}: {}", device_id, e);
+                }
+            }
+        }
+
+        Ok(success_count)
+    }
 }
 
 impl Default for MidiConnectionManager {

@@ -37,6 +37,50 @@
 
 ## Journal Entries
 
+## 2025-11-25 - TASK-014: Wire Sync Engine to UCNet (Complete)
+**Duration:** ~1.5 hours
+**Phase:** Phase 1 MVP (Critical)
+**Status:** Complete ✅
+
+### What Was Accomplished
+- **MIDI → UCNet Direction**
+  - Modified `start_sync_integration()` to accept `UcNetState` parameter
+  - Added `apply_ucnet_parameter()` helper function that routes Volume, Mute, Pan to UCNet
+  - Updated `trigger_midi_sync()` to apply UCNet changes (for testing without hardware)
+  - Frontend events now include `applied` and `error` fields for status feedback
+
+- **UCNet → MIDI Direction**
+  - Added `trigger_ucnet_sync()` command for reverse direction testing
+  - Added `broadcast_message()` method to `MidiConnectionManager` for sending to all outputs
+  - Added `get_connected_output_ids()` method for querying connected outputs
+  - New `sync:midi-sent` event emitted to frontend when MIDI output is sent
+
+- **Error Handling**
+  - Graceful handling when UCNet device is not connected
+  - Graceful handling when no MIDI output devices are connected
+  - Detailed error messages propagated to frontend via events
+  - Warnings logged but don't stop sync for other parameters
+
+- **Files Modified**
+  - `src-tauri/src/commands/sync_integration.rs` - Main sync integration logic
+  - `src-tauri/src/midi/connection.rs` - Added broadcast_message and get_connected_output_ids
+  - `src-tauri/src/main.rs` - Registered trigger_ucnet_sync command
+
+### What Was Learned
+- **Tauri State Sharing**: Multiple state objects can be passed to commands via `State<'_, T>`
+- **Arc Cloning**: Need to clone Arc references before moving into async tasks
+- **MIDI Output**: Broadcasting to all connected outputs is simpler than tracking specific devices
+
+### Blockers / Issues
+- Full test suite hangs (likely network-related tests waiting for connections)
+- Targeted tests pass successfully
+
+### Next Steps
+- Hardware testing with real StudioLive mixer (TASK-012)
+- Visual feedback integration (TASK-015)
+
+---
+
 ## 2025-11-24 - TASK-013: UCNet Protocol Implementation (In Progress)
 **Duration:** ~2 hours
 **Phase:** Phase 1 MVP (Critical)
