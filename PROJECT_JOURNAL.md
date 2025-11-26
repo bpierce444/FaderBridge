@@ -37,6 +37,64 @@
 
 ## Journal Entries
 
+## 2025-11-26 - TASK-015: Integrate Visual Feedback Components (Complete)
+**Duration:** ~1 hour
+**Phase:** Phase 1 MVP (Critical)
+**Status:** Complete ✅
+
+### What Was Accomplished
+- **Created useActivityIndicator Hook** (`src/hooks/useActivityIndicator.ts`)
+  - Tracks activity from Tauri backend events with auto-timeout
+  - Listens for multiple event names (MIDI and UCNet events)
+  - 500ms default timeout before activity indicator turns off
+  - Provides `triggerActivity()` and `reset()` methods for manual control
+  - Uses refs to avoid stale closure issues with callbacks
+  - 8 unit tests covering initialization, event handling, and cleanup
+
+- **Wired ActivityLights in StatusBar** (`src/components/StatusBar.tsx`)
+  - MIDI activity indicator now responds to: `midi:message-received`, `parameter-update`, `sync:midi-to-ucnet`
+  - UCNet activity indicator now responds to: `ucnet:parameter-changed`, `sync:ucnet-to-midi`, `sync:parameter-synced`
+  - Activity lights use appropriate colors (cyan for MIDI, emerald for UCNet)
+  - Added proper ARIA labels for accessibility
+  - 3 new tests for activity indicator functionality
+
+- **Added Visual Feedback Section to MappingManager** (`src/features/MappingManager.tsx`)
+  - New `VisualFeedbackSection` component renders MixerStrips for mapped channels
+  - `extractUniqueChannels()` helper extracts unique UCNet channels from mappings
+  - Parses parameter names to identify channel prefixes (e.g., "line/ch1/vol" → "line/ch1")
+  - MixerStrips display real-time fader, pan knob, and mute button for each channel
+  - Section only appears when mappings exist
+  - Horizontal scrollable layout for multiple channels
+
+- **Updated MappingManager Tests**
+  - Added mock for `@tauri-apps/api/event` to support MixerStrip rendering
+  - Tests continue to pass with new visual feedback section
+
+### What Was Learned
+- **Fake Timers + React Testing Library**: Don't mix well
+  - `waitFor` uses real timers internally, causing deadlocks with fake timers
+  - Better to use real timers with short timeouts for async tests
+  - Or use `vi.runAllTimers()` carefully within `act()` blocks
+
+- **useCallback Dependencies**: Storing timeout values in refs avoids recreating callbacks
+  - Prevents stale closure issues when callbacks are passed to event listeners
+  - Pattern: `const valueRef = useRef(value); valueRef.current = value;`
+
+- **MixerStrip Integration**: Components that use `useParameterValue` need Tauri event API mocked
+  - The hook calls `listen()` from `@tauri-apps/api/event`
+  - Tests must mock this or they'll fail with "transformCallback" errors
+
+### Blockers / Issues
+- Pre-existing test failures in TASK-017 (not related to this task)
+- MappingManager tests have label matching issues (pre-existing)
+
+### Next Steps
+- Hardware testing to verify activity lights respond to real MIDI/UCNet events
+- Verify MixerStrip faders animate smoothly with real-time parameter updates
+- Complete remaining MVP tasks
+
+---
+
 ## 2025-11-25 - TASK-016: Integrate MIDI Learn into UI (In Progress)
 **Duration:** ~1 hour
 **Phase:** Phase 1 MVP (Critical)

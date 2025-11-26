@@ -6,6 +6,21 @@
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ActivityLight } from './ActivityLight';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { useActivityIndicator } from '../hooks/useActivityIndicator';
+
+/** MIDI-related event names to track for activity indicator */
+const MIDI_ACTIVITY_EVENTS = [
+  'midi:message-received',
+  'parameter-update',
+  'sync:midi-to-ucnet',
+];
+
+/** UCNet-related event names to track for activity indicator */
+const UCNET_ACTIVITY_EVENTS = [
+  'ucnet:parameter-changed',
+  'sync:ucnet-to-midi',
+  'sync:parameter-synced',
+];
 
 export interface StatusBarProps {
   /** Current project ID for auto-save indicator */
@@ -36,6 +51,18 @@ export function StatusBar({
 }: StatusBarProps) {
   const { isSaving, lastSaved } = useAutoSave({ projectId });
 
+  // Track MIDI activity from backend events
+  const midiActivity = useActivityIndicator({
+    eventNames: MIDI_ACTIVITY_EVENTS,
+    timeout: 500,
+  });
+
+  // Track UCNet activity from backend events
+  const ucnetActivity = useActivityIndicator({
+    eventNames: UCNET_ACTIVITY_EVENTS,
+    timeout: 500,
+  });
+
   return (
     <div className="h-12 px-6 flex items-center justify-between bg-slate-900">
       {/* Left: Sync Status */}
@@ -46,13 +73,23 @@ export function StatusBar({
         <div className="flex items-center gap-4">
           {showMidiActivity && (
             <div className="flex items-center gap-2">
-              <ActivityLight active={false} size={8} />
+              <ActivityLight
+                active={midiActivity.isActive}
+                size={8}
+                color="cyan"
+                ariaLabel="MIDI activity indicator"
+              />
               <span className="text-xs text-slate-400">MIDI</span>
             </div>
           )}
           {showUCNetActivity && (
             <div className="flex items-center gap-2">
-              <ActivityLight active={false} size={8} />
+              <ActivityLight
+                active={ucnetActivity.isActive}
+                size={8}
+                color="emerald"
+                ariaLabel="UCNet activity indicator"
+              />
               <span className="text-xs text-slate-400">UCNet</span>
             </div>
           )}

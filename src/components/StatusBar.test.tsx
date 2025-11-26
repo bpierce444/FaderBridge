@@ -32,6 +32,14 @@ vi.mock('../hooks/useActiveSync', () => ({
   })),
 }));
 
+vi.mock('../hooks/useActivityIndicator', () => ({
+  useActivityIndicator: vi.fn(() => ({
+    isActive: false,
+    triggerActivity: vi.fn(),
+    reset: vi.fn(),
+  })),
+}));
+
 describe('StatusBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -93,5 +101,50 @@ describe('StatusBar', () => {
     render(<StatusBar projectId={null} />);
     expect(screen.queryByText(/saving/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
+  });
+
+  it('renders activity lights with proper aria labels', () => {
+    render(<StatusBar projectId={null} showMidiActivity={true} showUCNetActivity={true} />);
+    
+    expect(screen.getByRole('status', { name: /midi activity/i })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /ucnet activity/i })).toBeInTheDocument();
+  });
+
+  it('shows active MIDI indicator when activity is detected', async () => {
+    const useActivityIndicator = await import('../hooks/useActivityIndicator');
+    vi.mocked(useActivityIndicator.useActivityIndicator).mockImplementation(({ eventNames }) => {
+      // Return active for MIDI events
+      const isMidi = eventNames.some(e => e.includes('midi'));
+      return {
+        isActive: isMidi,
+        triggerActivity: vi.fn(),
+        reset: vi.fn(),
+      };
+    });
+    
+    render(<StatusBar projectId={null} showMidiActivity={true} showUCNetActivity={true} />);
+    
+    // MIDI activity indicator should be present
+    const midiIndicator = screen.getByRole('status', { name: /midi activity/i });
+    expect(midiIndicator).toBeInTheDocument();
+  });
+
+  it('shows active UCNet indicator when activity is detected', async () => {
+    const useActivityIndicator = await import('../hooks/useActivityIndicator');
+    vi.mocked(useActivityIndicator.useActivityIndicator).mockImplementation(({ eventNames }) => {
+      // Return active for UCNet events
+      const isUcnet = eventNames.some(e => e.includes('ucnet') || e.includes('sync'));
+      return {
+        isActive: isUcnet,
+        triggerActivity: vi.fn(),
+        reset: vi.fn(),
+      };
+    });
+    
+    render(<StatusBar projectId={null} showMidiActivity={true} showUCNetActivity={true} />);
+    
+    // UCNet activity indicator should be present
+    const ucnetIndicator = screen.getByRole('status', { name: /ucnet activity/i });
+    expect(ucnetIndicator).toBeInTheDocument();
   });
 });

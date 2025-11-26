@@ -11,6 +11,11 @@ import type { Mapping, Device } from '../hooks/useMappings';
 // Mock the hooks
 vi.mock('../hooks/useMappings');
 
+// Mock Tauri event API (needed for MixerStrip -> useParameterValue)
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+}));
+
 describe('MappingManager', () => {
   const mockMappings: Mapping[] = [
     {

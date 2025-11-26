@@ -3,11 +3,70 @@
  * Central UI for creating, viewing, editing, and deleting parameter mappings
  */
 
-import { useState } from 'react';
-import { useMappings, CreateMappingRequest, UpdateMappingRequest } from '../hooks/useMappings';
+import { useState, useMemo } from 'react';
+import { useMappings, CreateMappingRequest, UpdateMappingRequest, Mapping } from '../hooks/useMappings';
 import { MappingRow } from '../components/MappingRow';
 import { ParameterSelector } from '../components/ParameterSelector';
 import { useMidiLearn } from '../hooks/useMidiLearn';
+import { MixerStrip } from '../components/MixerStrip';
+
+/**
+ * Extracts unique UCNet channels from mappings for visual feedback display.
+ * Groups by device and channel prefix (e.g., "line/ch1").
+ */
+function extractUniqueChannels(mappings: Mapping[]): Array<{
+  key: string;
+  channelNumber: number;
+  label: string;
+  parameterPrefix: string;
+}> {
+  const channelMap = new Map<string, {
+    channelNumber: number;
+    label: string;
+    parameterPrefix: string;
+  }>();
+
+  for (const mapping of mappings) {
+    // Extract channel prefix from parameter name (e.g., "line/ch1/vol" -> "line/ch1")
+    const paramName = mapping.ucnet_parameter_name;
+    const parts = paramName.split('/');
+    
+    // Assume format like "line/ch1/vol" or "ch1/vol"
+    let prefix: string;
+    let channelNum = 1;
+    
+    if (parts.length >= 2) {
+      // Find the channel part (e.g., "ch1", "ch2")
+      const channelPart = parts.find(p => /^ch\d+$/i.test(p));
+      if (channelPart) {
+        channelNum = parseInt(channelPart.replace(/\D/g, ''), 10) || 1;
+        // Build prefix up to and including channel
+        const channelIndex = parts.indexOf(channelPart);
+        prefix = parts.slice(0, channelIndex + 1).join('/');
+      } else {
+        // No channel found, use first two parts
+        prefix = parts.slice(0, 2).join('/');
+      }
+    } else {
+      prefix = paramName;
+    }
+
+    const key = `${mapping.ucnet_device_id}:${prefix}`;
+    
+    if (!channelMap.has(key)) {
+      channelMap.set(key, {
+        channelNumber: channelNum,
+        label: mapping.label || `Ch ${channelNum}`,
+        parameterPrefix: prefix,
+      });
+    }
+  }
+
+  return Array.from(channelMap.entries()).map(([key, value]) => ({
+    key,
+    ...value,
+  }));
+}
 
 export interface MappingManagerProps {
   /** Current project ID */
@@ -470,8 +529,54 @@ export function MappingManager({ projectId }: MappingManagerProps) {
                 onDelete={handleDeleteMapping}
               />
             ))}
+
+            {/* Visual Feedback Section */}
+            <VisualFeedbackSection mappings={mappings} />
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Visual feedback section showing MixerStrips for mapped channels.
+ * Displays real-time parameter values from sync events.
+ */
+interface VisualFeedbackSectionProps {
+  mappings: Mapping[];
+}
+
+function VisualFeedbackSection({ mappings }: VisualFeedbackSectionProps) {
+  // Extract unique channels from mappings
+  const channels = useMemo(() => extractUniqueChannels(mappings), [mappings]);
+
+  if (channels.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-8 pt-6 border-t border-slate-700">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-white">Visual Feedback</h3>
+        <p className="text-xs text-slate-400 mt-1">
+          Real-time parameter values for mapped channels
+        </p>
+      </div>
+
+      <div 
+        className="flex gap-4 overflow-x-auto pb-4"
+        role="region"
+        aria-label="Mixer channel strips"
+      >
+        {channels.map((channel) => (
+          <MixerStrip
+            key={channel.key}
+            channelNumber={channel.channelNumber}
+            label={channel.label}
+            parameterPrefix={channel.parameterPrefix}
+          />
+        ))}
       </div>
     </div>
   );
