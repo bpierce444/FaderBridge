@@ -8,6 +8,7 @@ import { useProjects } from '../hooks/useProjects';
 import { Layout } from '../components/Layout';
 import { TopBar } from '../components/TopBar';
 import { StatusBar } from '../components/StatusBar';
+import { MessageMonitor } from '../components/MessageMonitor';
 import { MidiDeviceList } from './MidiDeviceList';
 import { DeviceManager } from './DeviceManager';
 import { MappingManager } from './MappingManager';
@@ -110,6 +111,7 @@ export function Dashboard() {
           showUCNetActivity={true}
         />
       }
+      messageMonitor={<MessageMonitor defaultCollapsed={true} maxMessages={100} />}
     />
     {/* MIDI Learn overlay - renders as fixed overlay when in learn mode */}
     <MidiLearn />

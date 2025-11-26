@@ -16,6 +16,8 @@ export interface LayoutProps {
   rightPanel: ReactNode;
   /** Bottom status bar content */
   statusBar?: ReactNode;
+  /** Message monitor panel (below status bar) */
+  messageMonitor?: ReactNode;
 }
 
 /**
@@ -39,6 +41,7 @@ export function Layout({
   centerPanel,
   rightPanel,
   statusBar,
+  messageMonitor,
 }: LayoutProps) {
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-white">
@@ -77,6 +80,13 @@ export function Layout({
       {statusBar && (
         <div className="flex-shrink-0 border-t border-slate-800">
           {statusBar}
+        </div>
+      )}
+
+      {/* Message Monitor */}
+      {messageMonitor && (
+        <div className="flex-shrink-0">
+          {messageMonitor}
         </div>
       )}
     </div>
