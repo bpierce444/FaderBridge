@@ -64,12 +64,16 @@ impl MidiConnectionManager {
         let port = &ports[device.port_number];
         let device_id = device.id.clone();
         let sender = self.message_sender.clone();
+        
+        log::info!("Connecting to MIDI input '{}' (id: {}), sender available: {}", 
+            device.name, device_id, sender.is_some());
 
         // Connect with callback
         let connection = midi_in.connect(
             port,
             &device.name,
             move |_timestamp, message, _| {
+                // Parse and send MIDI message
                 if let Some(msg_type) = MidiMessageType::from_bytes(message) {
                     if let Some(ref tx) = sender {
                         let _ = tx.send((device_id.clone(), msg_type));

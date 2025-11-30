@@ -20,6 +20,18 @@ export function useMidiDevices() {
     try {
       const discoveredDevices = await invoke<MidiDevice[]>('discover_midi_devices');
       setDevices(discoveredDevices);
+      
+      // Start MIDI monitoring if any input devices are connected
+      const hasConnectedInput = discoveredDevices.some(
+        d => d.device_type === 'input' && d.status === 'connected'
+      );
+      if (hasConnectedInput) {
+        try {
+          await invoke('start_midi_monitoring');
+        } catch (monitorErr) {
+          console.warn('Failed to start MIDI monitoring:', monitorErr);
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);
@@ -51,9 +63,26 @@ export function useMidiDevices() {
    * Connect to a MIDI device
    */
   const connectDevice = useCallback(async (deviceId: string, deviceType: MidiDeviceType) => {
+    console.log('useMidiDevices.connectDevice called:', deviceId, deviceType);
     setError(null);
     try {
+      // Start MIDI monitoring BEFORE connecting input devices
+      // This ensures the message channel is set up before the connection callback is created
+      if (deviceType === 'input') {
+        try {
+          console.log('Starting MIDI monitoring first...');
+          await invoke('start_midi_monitoring');
+          console.log('MIDI monitoring started');
+        } catch (monitorErr) {
+          console.warn('Failed to start MIDI monitoring:', monitorErr);
+          // Don't fail the connection if monitoring fails
+        }
+      }
+      
+      console.log('Invoking connect_midi_device...');
       await invoke('connect_midi_device', { deviceId, deviceType });
+      console.log('connect_midi_device succeeded');
+      
       // Update local state
       setDevices(prev =>
         prev.map(device =>
@@ -62,6 +91,7 @@ export function useMidiDevices() {
             : device
         )
       );
+      console.log('Local state updated');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setError(errorMessage);

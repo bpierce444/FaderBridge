@@ -134,6 +134,46 @@ export function useMessageMonitor({
   }, []);
 
   /**
+   * Format a MIDI message based on its type
+   */
+  const formatMidiMessage = (data: Record<string, unknown>): string => {
+    const channel = data?.channel ?? '?';
+    const msgType = data?.type as string | undefined;
+
+    switch (msgType) {
+      case 'control_change': {
+        const controller = data?.controller ?? '?';
+        const value = data?.value ?? '?';
+        return `CC ${controller} Ch${channel} = ${value}`;
+      }
+      case 'note_on': {
+        const note = data?.note ?? '?';
+        const velocity = data?.velocity ?? '?';
+        return `Note On ${note} Ch${channel} vel=${velocity}`;
+      }
+      case 'note_off': {
+        const note = data?.note ?? '?';
+        const velocity = data?.velocity ?? '?';
+        return `Note Off ${note} Ch${channel} vel=${velocity}`;
+      }
+      case 'pitch_bend': {
+        const value = data?.value ?? '?';
+        return `Pitch Bend Ch${channel} = ${value}`;
+      }
+      case 'program_change': {
+        const program = data?.program ?? '?';
+        return `Program Change Ch${channel} = ${program}`;
+      }
+      default: {
+        // Fallback for legacy format or unknown types
+        const controller = data?.controller ?? data?.cc ?? '?';
+        const value = data?.value ?? '?';
+        return `CC ${controller} Ch${channel} = ${value}`;
+      }
+    }
+  };
+
+  /**
    * Parse MIDI event payload into a message
    */
   const parseMidiEvent = useCallback(
@@ -146,25 +186,19 @@ export function useMessageMonitor({
       const data = payload as Record<string, unknown> | undefined;
 
       if (eventName === 'midi:message-received' || eventName === 'parameter-update') {
-        const channel = data?.channel ?? '?';
-        const controller = data?.controller ?? data?.cc ?? '?';
-        const value = data?.value ?? '?';
         return {
           direction: 'incoming',
           source: 'midi',
-          summary: `CC ${controller} Ch${channel} = ${value}`,
+          summary: formatMidiMessage(data ?? {}),
           rawData: JSON.stringify(data),
         };
       }
 
       if (eventName === 'midi:message-sent') {
-        const channel = data?.channel ?? '?';
-        const controller = data?.controller ?? data?.cc ?? '?';
-        const value = data?.value ?? '?';
         return {
           direction: 'outgoing',
           source: 'midi',
-          summary: `CC ${controller} Ch${channel} = ${value}`,
+          summary: formatMidiMessage(data ?? {}),
           rawData: JSON.stringify(data),
         };
       }

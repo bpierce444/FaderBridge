@@ -72,7 +72,11 @@ impl MidirEnumerator {
 
     /// Generate a unique ID for a device
     fn generate_device_id(device_type: MidiDeviceType, port: usize, name: &str) -> String {
-        format!("{:?}:{}:{}", device_type, port, name)
+        let type_str = match device_type {
+            MidiDeviceType::Input => "input",
+            MidiDeviceType::Output => "output",
+        };
+        format!("{}:{}:{}", type_str, port, name)
     }
 }
 

@@ -10,17 +10,23 @@ export function MidiDeviceList() {
     useMidiDevices();
 
   const handleConnect = async (device: MidiDevice) => {
+    console.log('handleConnect called for:', device.id, device.device_type);
     try {
       await connectDevice(device.id, device.device_type);
+      console.log('connectDevice completed successfully');
     } catch (err) {
+      console.error('handleConnect error:', err);
       // Error is already handled in the hook
     }
   };
 
   const handleDisconnect = async (device: MidiDevice) => {
+    console.log('handleDisconnect called for:', device.id, device.device_type);
     try {
       await disconnectDevice(device.id, device.device_type);
+      console.log('disconnectDevice completed successfully');
     } catch (err) {
+      console.error('handleDisconnect error:', err);
       // Error is already handled in the hook
     }
   };
@@ -144,8 +150,8 @@ function DeviceCard({
   onDisconnect,
 }: {
   device: MidiDevice;
-  onConnect: (device: MidiDevice) => void;
-  onDisconnect: (device: MidiDevice) => void;
+  onConnect: (device: MidiDevice) => Promise<void>;
+  onDisconnect: (device: MidiDevice) => Promise<void>;
 }) {
   const isConnected = device.status === 'connected';
 

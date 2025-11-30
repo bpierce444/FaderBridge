@@ -60,6 +60,57 @@ pub async fn start_sync_integration(
         while let Some((device_id, message)) = midi_rx.recv().await {
             debug!("Received MIDI message from {}: {:?}", device_id, message);
 
+            // Emit raw MIDI message event for Message Monitor
+            let midi_event_payload = match &message {
+                MidiMessageType::ControlChange { channel, controller, value } => {
+                    serde_json::json!({
+                        "device_id": device_id,
+                        "type": "control_change",
+                        "channel": channel,
+                        "controller": controller,
+                        "value": value,
+                    })
+                }
+                MidiMessageType::NoteOn { channel, note, velocity } => {
+                    serde_json::json!({
+                        "device_id": device_id,
+                        "type": "note_on",
+                        "channel": channel,
+                        "note": note,
+                        "velocity": velocity,
+                    })
+                }
+                MidiMessageType::NoteOff { channel, note, velocity } => {
+                    serde_json::json!({
+                        "device_id": device_id,
+                        "type": "note_off",
+                        "channel": channel,
+                        "note": note,
+                        "velocity": velocity,
+                    })
+                }
+                MidiMessageType::PitchBend { channel, value } => {
+                    serde_json::json!({
+                        "device_id": device_id,
+                        "type": "pitch_bend",
+                        "channel": channel,
+                        "value": value,
+                    })
+                }
+                MidiMessageType::ProgramChange { channel, program } => {
+                    serde_json::json!({
+                        "device_id": device_id,
+                        "type": "program_change",
+                        "channel": channel,
+                        "program": program,
+                    })
+                }
+            };
+
+            if let Err(e) = app_handle_clone.emit("midi:message-received", midi_event_payload) {
+                error!("Failed to emit MIDI message event: {}", e);
+            }
+
             // Get engine
             let engine_lock = engine_arc.read().await;
             if let Some(engine) = engine_lock.as_ref() {

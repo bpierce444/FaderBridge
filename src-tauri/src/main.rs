@@ -71,6 +71,7 @@ fn main() {
             commands::midi::connect_midi_device,
             commands::midi::disconnect_midi_device,
             commands::midi::check_midi_device_changes,
+            commands::midi::start_midi_monitoring,
             // Sync commands
             commands::sync::init_sync_engine,
             commands::sync::add_parameter_mapping,
