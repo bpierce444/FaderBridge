@@ -119,8 +119,28 @@ pub async fn discover_midi_devices(
     state: State<'_, MidiState>,
 ) -> Result<Vec<MidiDevice>, String> {
     log::info!("discover_midi_devices called");
+    
+    // Check if there are active MIDI connections
+    // On macOS, enumeration fails when connections are open
+    let has_connections = {
+        let conn_manager = state.connection_manager.lock()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+        conn_manager.input_count().unwrap_or(0) > 0 || 
+        conn_manager.output_count().unwrap_or(0) > 0
+    };
+    
     let manager = state.device_manager.lock()
         .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+    
+    // If connections are active, return cached devices instead of re-enumerating
+    // This avoids the macOS CoreMIDI issue where port names fail to retrieve
+    if has_connections {
+        log::info!("Active MIDI connections exist, returning cached devices");
+        let devices = manager.get_cached_devices()
+            .map_err(|e| e.to_string())?;
+        log::info!("Returning {} cached MIDI devices", devices.len());
+        return Ok(devices);
+    }
     
     let devices = manager.discover_devices()
         .map_err(|e| e.to_string())?;

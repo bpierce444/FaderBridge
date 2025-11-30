@@ -152,15 +152,18 @@ export function useMidiDevices() {
   }, [discoverDevices]);
 
   /**
-   * Set up hot-plug detection polling
+   * Hot-plug detection polling disabled on macOS
+   * Creating multiple MidiInput instances causes CoreMIDI to fail
+   * when retrieving port names. Users can click Refresh manually.
+   * TODO: Re-enable with a macOS-compatible approach (e.g., CoreMIDI notifications)
    */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkForChanges();
-    }, 2000); // Check every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [checkForChanges]);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     checkForChanges();
+  //   }, 2000); // Check every 2 seconds
+  //
+  //   return () => clearInterval(interval);
+  // }, [checkForChanges]);
 
   return {
     devices,
