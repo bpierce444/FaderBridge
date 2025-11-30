@@ -152,41 +152,25 @@ pub async fn connect_midi_device(
 ) -> Result<(), String> {
     log::info!("connect_midi_device called with id='{}', type={:?}", device_id, device_type);
     
-    // Extract device name from ID (format is "Type:Port:Name")
-    // Use splitn to handle names that might contain colons
+    // Extract port number and device name from ID (format is "Type:Port:Name")
     let parts: Vec<&str> = device_id.splitn(3, ':').collect();
     if parts.len() < 3 {
         return Err(format!("Invalid device ID format: {}", device_id));
     }
+    let port_number: usize = parts[1].parse()
+        .map_err(|_| format!("Invalid port number in device ID: {}", device_id))?;
     let device_name = parts[2];
-    log::info!("Extracted device name: '{}'", device_name);
+    log::info!("Extracted device name: '{}', port: {}", device_name, port_number);
     
-    // Refresh device list to get current port numbers
-    {
-        let device_manager = state.device_manager.lock()
-            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
-        
-        device_manager.discover_devices()
-            .map_err(|e| format!("Failed to refresh devices: {}", e))?;
-    }
-    
-    // Find device by name and type (port number may have changed)
-    let device = {
-        let device_manager = state.device_manager.lock()
-            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
-        
-        let devices = device_manager.get_cached_devices()
-            .map_err(|e| e.to_string())?;
-        
-        log::info!("Cached devices after refresh: {:?}", devices.iter().map(|d| (&d.name, &d.device_type)).collect::<Vec<_>>());
-        
-        devices.into_iter()
-            .find(|d| d.name == device_name && d.device_type == device_type)
-            .ok_or_else(|| format!("Device not found: {}. Available devices: {:?}", device_name, 
-                state.device_manager.lock().ok()
-                    .and_then(|m| m.get_cached_devices().ok())
-                    .map(|devs| devs.iter().map(|d| format!("{}:{:?}", d.name, d.device_type)).collect::<Vec<_>>())
-            ))?
+    // Create device directly from the ID info - don't re-enumerate
+    // Re-enumeration fails on macOS when another MIDI connection is open
+    let device = MidiDevice {
+        id: device_id.clone(),
+        name: device_name.to_string(),
+        manufacturer: None,
+        device_type: device_type.clone(),
+        port_number,
+        status: MidiConnectionStatus::Available,
     };
 
     // Connect to device
@@ -204,13 +188,12 @@ pub async fn connect_midi_device(
         }
     }
 
-    // Update device status using the fresh device ID
-    let device_manager = state.device_manager.lock()
-        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+    // Update device status in cache (ignore errors - device might not be in cache)
+    if let Ok(device_manager) = state.device_manager.lock() {
+        let _ = device_manager.update_device_status(&device.id, MidiConnectionStatus::Connected);
+    }
     
-    device_manager.update_device_status(&device.id, MidiConnectionStatus::Connected)
-        .map_err(|e| e.to_string())?;
-
+    log::info!("Successfully connected to MIDI device: {}", device_name);
     Ok(())
 }
 
