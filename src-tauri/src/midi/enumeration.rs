@@ -89,12 +89,12 @@ impl Default for MidirEnumerator {
 impl DeviceEnumerator for MidirEnumerator {
     fn discover_inputs(&self) -> MidiResult<Vec<MidiDevice>> {
         // Try to create MIDI input with retry for macOS permissions
-        let midi_in = match MidiInput::new("FaderBridge-Enum") {
+        let midi_in = match MidiInput::new("FaderBridge") {
             Ok(input) => input,
             Err(e) => {
                 // On macOS, CoreMIDI might need a moment after permissions are granted
                 std::thread::sleep(std::time::Duration::from_millis(100));
-                MidiInput::new("FaderBridge-Enum")
+                MidiInput::new("FaderBridge")
                     .map_err(|_| MidiError::InitializationError(format!(
                         "Failed to initialize MIDI input. Original error: {}. \
                         On macOS, please ensure FaderBridge has Microphone permission in System Settings > Privacy & Security.",
@@ -141,12 +141,12 @@ impl DeviceEnumerator for MidirEnumerator {
 
     fn discover_outputs(&self) -> MidiResult<Vec<MidiDevice>> {
         // Try to create MIDI output with retry for macOS permissions
-        let midi_out = match MidiOutput::new("FaderBridge-Enum") {
+        let midi_out = match MidiOutput::new("FaderBridge") {
             Ok(output) => output,
             Err(e) => {
                 // On macOS, CoreMIDI might need a moment after permissions are granted
                 std::thread::sleep(std::time::Duration::from_millis(100));
-                MidiOutput::new("FaderBridge-Enum")
+                MidiOutput::new("FaderBridge")
                     .map_err(|_| MidiError::InitializationError(format!(
                         "Failed to initialize MIDI output. Original error: {}. \
                         On macOS, please ensure FaderBridge has Microphone permission in System Settings > Privacy & Security.",

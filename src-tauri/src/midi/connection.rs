@@ -51,27 +51,44 @@ impl MidiConnectionManager {
             }
         }
 
-        let midi_in = MidiInput::new("FaderBridge-Input")?;
-        let ports = midi_in.ports();
+        log::info!("Connecting to MIDI input '{}' (cached port: {})", device.name, device.port_number);
         
-        if device.port_number >= ports.len() {
-            return Err(MidiError::DeviceNotFound(format!(
-                "Port {} not found for device '{}'",
-                device.port_number, device.name
-            )));
+        let mut midi_in = MidiInput::new("FaderBridge").map_err(|e| {
+            log::error!("Failed to create MidiInput: {}", e);
+            MidiError::InitializationError(format!("Failed to create MIDI input: {}", e))
+        })?;
+        
+        // Don't ignore any messages - we want to receive everything
+        midi_in.ignore(midir::Ignore::None);
+        
+        let ports = midi_in.ports();
+        log::info!("Found {} MIDI input ports at connection time", ports.len());
+        
+        // Log all available ports for debugging
+        for (i, p) in ports.iter().enumerate() {
+            let name = midi_in.port_name(p).unwrap_or_else(|_| "ERROR".to_string());
+            log::info!("  Port {}: {}", i, name);
         }
-
-        let port = &ports[device.port_number];
+        
+        // Find the port by NAME since port numbers can change
+        let port = ports.iter().find(|p| {
+            midi_in.port_name(p).map(|n| n == device.name).unwrap_or(false)
+        }).ok_or_else(|| {
+            MidiError::DeviceNotFound(format!(
+                "Device '{}' not found in current MIDI ports. Try refreshing devices.",
+                device.name
+            ))
+        })?;
         let device_id = device.id.clone();
         let sender = self.message_sender.clone();
         
-        log::info!("Connecting to MIDI input '{}' (id: {}), sender available: {}", 
-            device.name, device_id, sender.is_some());
+        log::info!("Connecting to MIDI input '{}' (id: {}), port index: {}, sender available: {}", 
+            device.name, device_id, device.port_number, sender.is_some());
 
-        // Connect with callback
+        // Connect with callback - use a simple client name
         let connection = midi_in.connect(
             port,
-            &device.name,
+            "FaderBridge",
             move |_timestamp, message, _| {
                 // Parse and send MIDI message
                 if let Some(msg_type) = MidiMessageType::from_bytes(message) {
@@ -81,9 +98,12 @@ impl MidiConnectionManager {
                 }
             },
             (),
-        ).map_err(|e| MidiError::ConnectionError {
-            device: device.name.clone(),
-            reason: e.to_string(),
+        ).map_err(|e| {
+            log::error!("Failed to connect to MIDI port {}: {}", device.port_number, e);
+            MidiError::ConnectionError {
+                device: device.name.clone(),
+                reason: e.to_string(),
+            }
         })?;
 
         // Store connection
