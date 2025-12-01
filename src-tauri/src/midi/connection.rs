@@ -64,21 +64,17 @@ impl MidiConnectionManager {
         let ports = midi_in.ports();
         log::info!("Found {} MIDI input ports at connection time", ports.len());
         
-        // Log all available ports for debugging
-        for (i, p) in ports.iter().enumerate() {
-            let name = midi_in.port_name(p).unwrap_or_else(|_| "ERROR".to_string());
-            log::info!("  Port {}: {}", i, name);
+        // On macOS, port_name() often fails when multiple MidiInput instances exist.
+        // Use the cached port index directly instead of searching by name.
+        if device.port_number >= ports.len() {
+            return Err(MidiError::DeviceNotFound(format!(
+                "Port {} not available (only {} ports found). Device '{}' may have been disconnected.",
+                device.port_number, ports.len(), device.name
+            )));
         }
         
-        // Find the port by NAME since port numbers can change
-        let port = ports.iter().find(|p| {
-            midi_in.port_name(p).map(|n| n == device.name).unwrap_or(false)
-        }).ok_or_else(|| {
-            MidiError::DeviceNotFound(format!(
-                "Device '{}' not found in current MIDI ports. Try refreshing devices.",
-                device.name
-            ))
-        })?;
+        let port = &ports[device.port_number];
+        log::info!("Using cached port index {} for '{}'", device.port_number, device.name);
         let device_id = device.id.clone();
         let sender = self.message_sender.clone();
         

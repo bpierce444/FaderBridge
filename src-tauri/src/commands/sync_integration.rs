@@ -126,6 +126,7 @@ pub async fn start_sync_integration(
                         result.channel,
                         result.parameter_type,
                         &result.value,
+                        Some(&app_handle_clone),
                     ).await;
 
                     // Emit sync event to frontend (include success/failure status)
@@ -167,7 +168,7 @@ pub async fn start_sync_integration(
     Ok(())
 }
 
-/// Applies a parameter change to a UCNet device
+/// Applies a parameter change to a UCNet device and emits events for the Message Monitor
 ///
 /// # Arguments
 /// * `connection_manager` - UCNet connection manager
@@ -175,12 +176,14 @@ pub async fn start_sync_integration(
 /// * `channel` - Target channel number (1-based)
 /// * `parameter_type` - Type of parameter to change
 /// * `value` - New parameter value
+/// * `app_handle` - Optional Tauri app handle for emitting events
 async fn apply_ucnet_parameter(
     connection_manager: &Arc<crate::ucnet::ConnectionManager>,
     device_id: &str,
     channel: u32,
     parameter_type: UcNetParameterType,
     value: &UcNetParameterValue,
+    app_handle: Option<&AppHandle>,
 ) -> Result<(), String> {
     // Check if device is connected
     let device_state = connection_manager.get_device_state(device_id).await;
@@ -188,8 +191,29 @@ async fn apply_ucnet_parameter(
         return Err(format!("UCNet device '{}' not connected", device_id));
     }
 
+    // Build parameter key for logging
+    let param_key = match parameter_type {
+        UcNetParameterType::Volume => format!("line.ch{}.volume", channel),
+        UcNetParameterType::Mute => format!("line.ch{}.mute", channel),
+        UcNetParameterType::Pan => format!("line.ch{}.pan", channel),
+    };
+
+    // Emit UCNet message-sent event for Message Monitor (before sending)
+    if let Some(handle) = app_handle {
+        let event_payload = serde_json::json!({
+            "device_id": device_id,
+            "parameter": param_key,
+            "channel": channel,
+            "parameter_type": format!("{:?}", parameter_type),
+            "value": value,
+        });
+        if let Err(e) = handle.emit("ucnet:message-sent", event_payload) {
+            error!("Failed to emit UCNet message-sent event: {}", e);
+        }
+    }
+
     // Apply the parameter based on type
-    match (parameter_type, value) {
+    let result = match (parameter_type, value) {
         (UcNetParameterType::Volume, UcNetParameterValue::Float(vol)) => {
             connection_manager
                 .set_channel_volume(device_id, channel as u8, *vol)
@@ -212,7 +236,9 @@ async fn apply_ucnet_parameter(
             "Invalid parameter type/value combination: {:?}/{:?}",
             parameter_type, value
         )),
-    }
+    };
+
+    result
 }
 
 /// Stops the sync integration
@@ -260,6 +286,7 @@ pub async fn trigger_midi_sync(
             result.channel,
             result.parameter_type,
             &result.value,
+            Some(&app_handle),
         ).await;
 
         // Emit sync event to frontend (include success/failure status)

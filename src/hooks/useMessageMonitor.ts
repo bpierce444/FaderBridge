@@ -253,13 +253,27 @@ export function useMessageMonitor({
         };
       }
 
-      if (eventName === 'sync:ucnet-to-midi' || eventName === 'sync:parameter-synced') {
+      if (eventName === 'sync:ucnet-to-midi') {
         const param = data?.parameter ?? data?.source ?? 'unknown';
         const value = data?.value ?? '?';
         return {
           direction: 'incoming',
           source: 'ucnet',
           summary: `Sync ← ${param} = ${value}`,
+          rawData: JSON.stringify(data),
+        };
+      }
+
+      if (eventName === 'sync:parameter-synced') {
+        const paramType = data?.parameter_type ?? 'unknown';
+        const channel = data?.channel ?? '?';
+        const value = data?.value ?? '?';
+        const applied = data?.applied;
+        const status = applied === true ? '' : applied === false ? ' [FAILED]' : '';
+        return {
+          direction: 'outgoing',
+          source: 'ucnet',
+          summary: `Synced: Ch${channel} ${paramType} = ${JSON.stringify(value)}${status}`,
           rawData: JSON.stringify(data),
         };
       }

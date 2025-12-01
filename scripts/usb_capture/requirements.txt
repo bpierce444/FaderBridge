@@ -1,0 +1,4 @@
+# Requirements for USB capture scripts
+# Install with: pip install -r requirements.txt
+
+pyusb>=1.2.1
