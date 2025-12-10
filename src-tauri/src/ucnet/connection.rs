@@ -6,12 +6,17 @@
 //! - TCP port 53000 for control communication
 //! - Hello packet sent first, then Subscribe with JSON payload
 //! - Keep-alive (KA) packets sent every 3-5 seconds
-//! - Parameter changes sent via PS (Parameter Set) packets
+//! - Parameter changes sent via PV (Parameter Value) packets
+//!
+//! ## Key Protocol Details (from reverse engineering)
+//! - Size field is little-endian and includes the 2-byte type
+//! - Subscribe must use clientType="Mac", clientInternalName="ucapp"
+//! - CBytes for Subscribe and PV packets: 0x72 0x00 0x65 0x00 ('r', 'e')
 
 use super::error::{Result, UcNetError};
 use super::protocol::{
-    build_hello_packet, build_keepalive_packet, build_parameter_set_bool_packet,
-    build_parameter_set_packet, build_subscribe_packet, keys, PacketHeader, PayloadType,
+    build_hello_packet, build_keepalive_packet, build_parameter_value_bool_packet,
+    build_parameter_value_packet, build_subscribe_packet, keys, PacketHeader, PayloadType,
     SubscribeRequest, CONTROL_PORT, MAGIC_BYTES,
 };
 use super::types::{constants::*, ConnectionState, ConnectionType, UcNetDevice};
@@ -399,7 +404,8 @@ impl ConnectionManager {
         
         match &connection.connection_data {
             ConnectionData::Network { addr, stream } => {
-                let packet = build_parameter_set_packet(key, value);
+                // Use PV (ParameterValue) packets - this is what Universal Control uses
+                let packet = build_parameter_value_packet(key, value);
                 
                 let mut stream_guard = stream.write().await;
                 if let Some(ref mut tcp_stream) = *stream_guard {
@@ -438,7 +444,8 @@ impl ConnectionManager {
         
         match &connection.connection_data {
             ConnectionData::Network { addr, stream } => {
-                let packet = build_parameter_set_bool_packet(key, value);
+                // Use PV (ParameterValue) packets - this is what Universal Control uses
+                let packet = build_parameter_value_bool_packet(key, value);
                 
                 let mut stream_guard = stream.write().await;
                 if let Some(ref mut tcp_stream) = *stream_guard {

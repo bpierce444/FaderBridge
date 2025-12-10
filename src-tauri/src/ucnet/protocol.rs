@@ -115,9 +115,10 @@ pub struct CBytes {
 }
 
 impl CBytes {
-    /// Create new C-Bytes with default values (j, e)
+    /// Create new C-Bytes with default values (r, e)
+    /// These are the CBytes that Universal Control uses for Subscribe and PV packets
     pub fn new() -> Self {
-        Self { a: 0x6A, b: 0x65 } // 'j', 'e'
+        Self { a: 0x72, b: 0x65 } // 'r', 'e' - matches Universal Control
     }
 
     /// Create C-Bytes from raw bytes
@@ -173,7 +174,8 @@ impl PacketHeader {
             )));
         }
 
-        let size = u16::from_be_bytes([bytes[4], bytes[5]]);
+        // Size is little-endian and includes the 2-byte type
+        let size = u16::from_le_bytes([bytes[4], bytes[5]]);
         let payload_type = PayloadType::from_bytes([bytes[6], bytes[7]]);
 
         Ok(Self {
@@ -187,16 +189,18 @@ impl PacketHeader {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(8);
         bytes.extend_from_slice(&self.magic);
-        bytes.extend_from_slice(&self.size.to_be_bytes());
+        bytes.extend_from_slice(&self.size.to_le_bytes());
         bytes.extend_from_slice(&self.payload_type.to_bytes());
         bytes
     }
 
     /// Create a new header with the given payload type and size
+    /// Note: size field includes the 2-byte type in UCNet protocol
     pub fn new(payload_type: PayloadType, payload_size: u16) -> Self {
         Self {
             magic: MAGIC_BYTES,
-            size: payload_size,
+            // Size includes the 2-byte payload type
+            size: payload_size + 2,
             payload_type,
         }
     }
@@ -320,10 +324,11 @@ impl Default for SubscribeRequest {
     fn default() -> Self {
         Self {
             id: "Subscribe".to_string(),
-            client_name: "FaderBridge".to_string(),
-            client_internal_name: "faderbridge".to_string(),
-            client_type: "PC".to_string(),
-            client_description: "FaderBridge MIDI Controller".to_string(),
+            // These fields must match Universal Control's format for the mixer to accept commands
+            client_name: "Universal Control".to_string(),
+            client_internal_name: "ucapp".to_string(),
+            client_type: "Mac".to_string(),
+            client_description: "FaderBridge".to_string(),
             client_identifier: "FaderBridge".to_string(),
             // Options: perm=permissions, users=user list, levl=levels, redu=redux, rtan=real-time analysis
             client_options: "perm users levl redu rtan".to_string(),
@@ -478,13 +483,30 @@ pub fn build_keepalive_packet() -> Vec<u8> {
     build_packet(PayloadType::KeepAlive, &[])
 }
 
-/// Build a Parameter Set packet
+/// Build a Parameter Value packet (PV) for setting float parameters
+/// 
+/// This uses the PV packet type which is what Universal Control uses
+/// for controlling mixer parameters like fader levels.
+pub fn build_parameter_value_packet(key: &str, value: f32) -> Vec<u8> {
+    let payload = ParameterValue::to_set_payload(key, value, CBytes::new());
+    build_packet(PayloadType::ParameterValue, &payload)
+}
+
+/// Build a Parameter Value packet (PV) for boolean values
+pub fn build_parameter_value_bool_packet(key: &str, value: bool) -> Vec<u8> {
+    let payload = ParameterValue::to_set_bool_payload(key, value, CBytes::new());
+    build_packet(PayloadType::ParameterValue, &payload)
+}
+
+/// Build a Parameter Set packet (PS) - legacy, prefer build_parameter_value_packet
+#[deprecated(note = "Use build_parameter_value_packet instead - PV packets are what UC uses")]
 pub fn build_parameter_set_packet(key: &str, value: f32) -> Vec<u8> {
     let payload = ParameterValue::to_set_payload(key, value, CBytes::new());
     build_packet(PayloadType::ParameterSet, &payload)
 }
 
-/// Build a Parameter Set packet for boolean values
+/// Build a Parameter Set packet for boolean values - legacy
+#[deprecated(note = "Use build_parameter_value_bool_packet instead")]
 pub fn build_parameter_set_bool_packet(key: &str, value: bool) -> Vec<u8> {
     let payload = ParameterValue::to_set_bool_payload(key, value, CBytes::new());
     build_packet(PayloadType::ParameterSet, &payload)
