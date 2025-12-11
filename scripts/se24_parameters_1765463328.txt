@@ -1,0 +1,21 @@
+# SE24 Parameter Dump
+# Generated: 2025-12-11 08:28:48
+
+## Float Parameters (PV)
+
+permissions/assigns = 0.0
+permissions/channel_source = 0.0
+permissions/channel_type = 0.0
+permissions/device_list = 1.0
+permissions/eq_dyn = 0.0
+permissions/fx = 0.0
+permissions/geq = 0.0
+permissions/groups = 0.0
+permissions/mix_permissions = 0.0
+permissions/mute_groups = 0.0
+permissions/preamps = 0.0
+permissions/rename = 0.0
+permissions/scenes = 0.0
+
+## String Parameters (PS)
+
