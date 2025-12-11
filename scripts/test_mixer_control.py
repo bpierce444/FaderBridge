@@ -1,7 +1,22 @@
 #!/usr/bin/env python3
 """
-Test UCNet control of StudioLive mixer.
-Connects directly to mixer, subscribes, and sends fader commands.
+UCNet Control Test for StudioLive Mixers
+
+Connects directly to a network-connected StudioLive mixer via UCNet (TCP port 53000),
+performs the handshake, and sends fader control commands.
+
+Usage:
+    python3 test_mixer_control.py <mixer_ip> [value]
+    
+Examples:
+    python3 test_mixer_control.py 192.168.1.209 0.5   # Set main fader to 50%
+    python3 test_mixer_control.py 192.168.1.209 0.1   # Set main fader to 10%
+
+Key Protocol Details:
+    - Size field is little-endian and includes the 2-byte type
+    - Subscribe must use clientType="Mac", clientInternalName="ucapp"
+    - CBytes for Subscribe and PV packets: 0x72 0x00 0x65 0x00 ('r', 'e')
+    - Parameter values are linear gain (0.0-1.0), not dB
 """
 
 import socket
