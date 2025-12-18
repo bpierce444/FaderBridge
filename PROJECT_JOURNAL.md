@@ -37,6 +37,59 @@
 
 ## Journal Entries
 
+## 2025-12-11 & 2025-12-17 - SE24 UCNet Parameter Discovery
+**Duration:** ~3 hours (across sessions)
+**Phase:** Protocol Research
+**Status:** Complete ✅
+
+### What Was Accomplished
+- **Discovered SE24 Parameter Path Format**
+  - SE24 uses `line/chX/` prefix (not `main/chX/` as previously assumed)
+  - Created discovery scripts to capture and parse mixer state
+  - State is sent compressed (zlib) in CK packets with ZB payload
+
+- **Confirmed Working Parameters (Physically Verified)**
+  - `line/ch{N}/select` - Channel selection (0.0=off, 1.0=on)
+  - `line/ch{N}/volume` - Fader level (0.0-1.0)
+  - `line/ch{N}/pan` - Pan position (0.0=L, 0.5=C, 1.0=R)
+  - `line/ch{N}/mute` - Mute on/off
+  - `line/ch{N}/solo` - Solo on/off (also triggers `mastersection/anysolo`)
+  - `line/ch{N}/aux1` through `aux32` - Aux send levels
+  - `line/ch{N}/filter/hpf` - High-pass filter
+  - `line/ch{N}/gate/threshold` - Gate threshold
+
+- **Main Output Fader Investigation**
+  - Tested 20+ path variations without success
+  - Paths tested: `main/volume`, `global/mainOutVolume`, `mastersection/volume`, `lr/volume`, etc.
+  - Conclusion: SE24 rack mixer may not expose main output fader via UCNet
+
+- **Scripts Created**
+  - `scripts/discover_parameters.py` - State dump and analysis
+  - `scripts/listen_params.py` - Real-time parameter change monitor
+  - `scripts/parse_zb_packets.py` - Compressed packet parser
+
+- **Documentation Created**
+  - `Docs/SE24_PARAMETER_REFERENCE.md` - Comprehensive parameter reference
+
+### What Was Learned
+- **SE24 vs Quantum HD 2**: Different path formats
+  - Quantum HD 2: `global/mainOutVolume`
+  - SE24: `line/ch{N}/volume`
+- **State Compression**: Mixer state uses zlib-compressed binary format with tagged properties
+- **Network Behavior**: Fader movements aren't broadcast over network unless specifically requested
+- **Echo Responses**: Mute/solo echo back immediately; volume/pan don't echo but still work
+
+### Blockers / Issues
+- Main output fader path not found - may be hardware-only on SE24 rack mixer
+
+### Next Steps
+- Test EQ parameters (`line/ch{N}/eq/`)
+- Test compressor/dynamics parameters
+- Test input gain (`line/ch{N}/gain`)
+- Investigate if main output is accessible via different mechanism
+
+---
+
 ## 2025-11-26 - TASK-015: Integrate Visual Feedback Components (Complete)
 **Duration:** ~1 hour
 **Phase:** Phase 1 MVP (Critical)

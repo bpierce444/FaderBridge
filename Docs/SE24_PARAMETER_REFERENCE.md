@@ -23,6 +23,7 @@ The SE24 uses hierarchical parameter paths in the format:
 | `line/ch{N}/pan` | float | 0.0 (L) - 1.0 (R) | Channel pan | Yes |
 | `line/ch{N}/mute` | float | 0.0 = off, 1.0 = on | Channel mute | Yes |
 | `line/ch{N}/solo` | float | 0.0 = off, 1.0 = on | Channel solo | Yes |
+| `line/ch{N}/aux1` - `aux32` | float | 0.0 - 1.0 | Aux send levels | Yes |
 | `line/ch{N}/filter/hpf` | float | 0.0 - 1.0 | High-pass filter frequency | Yes (observed) |
 | `line/ch{N}/gate/threshold` | float | 0.0 - 1.0 | Gate threshold | Yes (observed) |
 
@@ -33,7 +34,6 @@ The SE24 uses hierarchical parameter paths in the format:
 | `line/ch{N}/stereopan` | float | 0.0 - 1.0 | Stereo pan |
 | `line/ch{N}/fader` | float | 0.0 - 1.0 | Fader position (may be alias for volume) |
 | `line/ch{N}/gain` | float | 0.0 - 1.0 | Input gain |
-| `line/ch{N}/aux1` - `aux32` | float | 0.0 - 1.0 | Aux send levels |
 
 ### Channel Numbers
 
@@ -153,16 +153,28 @@ import socket, struct, json, time
 
 ---
 
+## Main Output Fader
+
+**Status: Not found via UCNet**
+
+Extensive testing of the following paths did not control the main output fader:
+- `main/volume`, `main/fader`, `main/ch1/volume`
+- `global/mainVolume`, `global/mainOutVolume`, `global/main_volume`
+- `mastersection/volume`, `mastersection/fader`, `mastersection/mon_level`
+- `lr/volume`, `stereo/volume`, `line/main/volume`
+- `channels/ch33/volume`, `channels/ch34/volume` (these are SD recorder tracks, not main out)
+
+The SE24 rack mixer may not expose the main output fader via UCNet protocol.
+
 ## Next Steps
 
-1. **Verify volume/pan control** - These parameters exist in state but need physical verification
-2. **Discover main output path** - Find the main fader parameter
-3. **Map aux sends** - Test `line/ch{N}/aux{M}` paths
-4. **EQ parameters** - Explore `line/ch{N}/eq/` structure
-5. **Compressor/Gate** - Map dynamics parameters
+1. **EQ parameters** - Explore `line/ch{N}/eq/` structure
+2. **Compressor/dynamics** - Map `line/ch{N}/comp/` and `line/ch{N}/gate/` parameters
+3. **Input gain** - Test `line/ch{N}/gain` path
+4. **FX sends/returns** - Discover FX routing parameters
 
 ---
 
 ## Changelog
 
-- 2024-12-11: Confirmed all core channel parameters working: select, volume, pan, mute, solo, filter/hpf, gate/threshold
+- 2024-12-11: Confirmed all core channel parameters working: select, volume, pan, mute, solo, aux sends (aux1-aux32), filter/hpf, gate/threshold. Main output fader path not found via UCNet.
